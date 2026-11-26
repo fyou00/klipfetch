@@ -55,9 +55,15 @@ class QueueItem {
     this.qualityLabel,
     this.audioOnly = false,
     this.audioFormat,
+    this.mergeOutputFormat,
+    this.downloadSubtitles = false,
+    this.embedSubtitles = true,
+    this.subtitleLangs,
+    this.sponsorBlockCategories = const [],
     this.usedFallback = false,
     this.outputPath,
     this.contentUri,
+    this.exportedCount = 1,
     this.errorMessage,
     this.retryCount = 0,
   });
@@ -79,9 +85,15 @@ class QueueItem {
   final String? qualityLabel;
   final bool audioOnly;
   final String? audioFormat;
+  final String? mergeOutputFormat;
+  final bool downloadSubtitles;
+  final bool embedSubtitles;
+  final String? subtitleLangs;
+  final List<String> sponsorBlockCategories;
   final bool usedFallback;
   final String? outputPath;
   final String? contentUri;
+  final int exportedCount;
   final String? errorMessage;
   final int retryCount;
 
@@ -109,6 +121,7 @@ class QueueItem {
     bool? usedFallback,
     String? outputPath,
     String? contentUri,
+    int? exportedCount,
     String? errorMessage,
     bool clearError = false,
     int? retryCount,
@@ -131,9 +144,15 @@ class QueueItem {
       qualityLabel: qualityLabel,
       audioOnly: audioOnly,
       audioFormat: audioFormat,
+      mergeOutputFormat: mergeOutputFormat,
+      downloadSubtitles: downloadSubtitles,
+      embedSubtitles: embedSubtitles,
+      subtitleLangs: subtitleLangs,
+      sponsorBlockCategories: sponsorBlockCategories,
       usedFallback: usedFallback ?? this.usedFallback,
       outputPath: outputPath ?? this.outputPath,
       contentUri: contentUri ?? this.contentUri,
+      exportedCount: exportedCount ?? this.exportedCount,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       retryCount: retryCount ?? this.retryCount,
     );

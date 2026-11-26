@@ -5,11 +5,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../models/app_settings.dart';
+import '../models/auth_models.dart';
 import '../models/download_models.dart';
 import '../models/media_platform.dart';
 import '../models/media_probe.dart';
 import '../models/queue_item.dart';
 import '../services/android_platform_service.dart';
+import '../services/cookie_service.dart';
 import '../services/queue_repository.dart';
 import '../services/rust_core_service.dart';
 import '../services/settings_repository.dart';
@@ -35,6 +37,71 @@ final urlRouterProvider = Provider<UrlRouterService>((ref) {
 final androidPlatformProvider = Provider<AndroidPlatformClient>((ref) {
   return AndroidPlatformService();
 });
+
+final cookieAuthServiceProvider = Provider<CookieAuthService>((ref) {
+  return CookieAuthService(
+    nativeEngine: ref.watch(rustCoreServiceProvider),
+    androidPlatform: ref.watch(androidPlatformProvider),
+  );
+});
+
+final cookieStatusesProvider = NotifierProvider<CookieStatusesNotifier,
+    Map<MediaPlatform, CookieSessionStatus>>(
+  CookieStatusesNotifier.new,
+);
+
+class CookieStatusesNotifier
+    extends Notifier<Map<MediaPlatform, CookieSessionStatus>> {
+  @override
+  Map<MediaPlatform, CookieSessionStatus> build() {
+    return {
+      for (final config in AuthPlatformConfig.all)
+        config.platform: CookieSessionStatus(
+          platform: config.platform,
+          domain: config.domain,
+        ),
+    };
+  }
+
+  Future<void> refresh() async {
+    final statuses =
+        await ref.read(cookieAuthServiceProvider).loadAllStatuses();
+    state = statuses;
+  }
+
+  Future<CookieSessionStatus?> signIn(MediaPlatform platform) async {
+    final status =
+        await ref.read(cookieAuthServiceProvider).signInWithBrowser(platform);
+    if (status != null) {
+      state = {...state, platform: status};
+    }
+    return status;
+  }
+
+  Future<CookieSessionStatus> importNetscape(
+    MediaPlatform platform,
+    String rawContent,
+  ) async {
+    final status = await ref
+        .read(cookieAuthServiceProvider)
+        .importNetscapeCookies(platform, rawContent);
+    state = {...state, platform: status};
+    return status;
+  }
+
+  Future<SessionTestResult> testSession(MediaPlatform platform) async {
+    final result =
+        await ref.read(cookieAuthServiceProvider).testSession(platform);
+    await refresh();
+    return result;
+  }
+
+  Future<void> clear(MediaPlatform platform) async {
+    final status =
+        await ref.read(cookieAuthServiceProvider).clearCookies(platform);
+    state = {...state, platform: status};
+  }
+}
 
 final queueStorageProvider = Provider<QueueStorage>((ref) {
   return RustSqliteQueueStorage();
@@ -113,6 +180,31 @@ class SettingsNotifier extends Notifier<AppSettings> {
     await _update(state.copyWith(updateChannel: channel));
   }
 
+  Future<void> setDefaultVideoContainer(String container) async {
+    await _update(state.copyWith(defaultVideoContainer: container));
+  }
+
+  Future<void> setDownloadSubtitles(bool enabled) async {
+    await _update(state.copyWith(downloadSubtitles: enabled));
+  }
+
+  Future<void> setEmbedSubtitles(bool enabled) async {
+    await _update(state.copyWith(embedSubtitles: enabled));
+  }
+
+  Future<void> setSubtitleLanguages(String langs) async {
+    final cleaned = langs.trim().isEmpty ? 'en,id' : langs.trim();
+    await _update(state.copyWith(subtitleLanguages: cleaned));
+  }
+
+  Future<void> setSponsorBlockEnabled(bool enabled) async {
+    await _update(state.copyWith(sponsorBlockEnabled: enabled));
+  }
+
+  Future<void> setTiktokSlideshowIncludeAudio(bool enabled) async {
+    await _update(state.copyWith(tiktokSlideshowIncludeAudio: enabled));
+  }
+
   Future<void> _update(AppSettings next) async {
     state = next;
     await ref.read(settingsStorageProvider).save(next);
@@ -129,6 +221,12 @@ class HomeProbeState {
     this.selectedFormat,
     this.audioOnly = false,
     this.selectedAudioFormat = 'm4a',
+    this.videoContainer = 'mp4',
+    this.downloadSubtitles = false,
+    this.embedSubtitles = true,
+    this.sponsorBlockEnabled = false,
+    this.tiktokSlideshowIncludeAudio = true,
+    this.selectedPlaylistIndices = const {},
   });
 
   final String inputUrl;
@@ -139,6 +237,12 @@ class HomeProbeState {
   final MediaFormatOption? selectedFormat;
   final bool audioOnly;
   final String selectedAudioFormat;
+  final String videoContainer;
+  final bool downloadSubtitles;
+  final bool embedSubtitles;
+  final bool sponsorBlockEnabled;
+  final bool tiktokSlideshowIncludeAudio;
+  final Set<int> selectedPlaylistIndices;
 
   HomeProbeState copyWith({
     String? inputUrl,
@@ -152,6 +256,12 @@ class HomeProbeState {
     bool clearFormat = false,
     bool? audioOnly,
     String? selectedAudioFormat,
+    String? videoContainer,
+    bool? downloadSubtitles,
+    bool? embedSubtitles,
+    bool? sponsorBlockEnabled,
+    bool? tiktokSlideshowIncludeAudio,
+    Set<int>? selectedPlaylistIndices,
   }) {
     return HomeProbeState(
       inputUrl: inputUrl ?? this.inputUrl,
@@ -159,9 +269,18 @@ class HomeProbeState {
       isProbing: isProbing ?? this.isProbing,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       probeResult: clearProbe ? null : (probeResult ?? this.probeResult),
-      selectedFormat: clearFormat ? null : (selectedFormat ?? this.selectedFormat),
+      selectedFormat:
+          clearFormat ? null : (selectedFormat ?? this.selectedFormat),
       audioOnly: audioOnly ?? this.audioOnly,
       selectedAudioFormat: selectedAudioFormat ?? this.selectedAudioFormat,
+      videoContainer: videoContainer ?? this.videoContainer,
+      downloadSubtitles: downloadSubtitles ?? this.downloadSubtitles,
+      embedSubtitles: embedSubtitles ?? this.embedSubtitles,
+      sponsorBlockEnabled: sponsorBlockEnabled ?? this.sponsorBlockEnabled,
+      tiktokSlideshowIncludeAudio:
+          tiktokSlideshowIncludeAudio ?? this.tiktokSlideshowIncludeAudio,
+      selectedPlaylistIndices:
+          selectedPlaylistIndices ?? this.selectedPlaylistIndices,
     );
   }
 }
@@ -174,18 +293,27 @@ class HomeProbeNotifier extends Notifier<HomeProbeState> {
   @override
   HomeProbeState build() {
     final defaults = ref.read(settingsProvider);
-    return HomeProbeState(selectedAudioFormat: defaults.defaultAudioFormat);
+    return HomeProbeState(
+      selectedAudioFormat: defaults.defaultAudioFormat,
+      videoContainer: defaults.defaultVideoContainer,
+      downloadSubtitles: defaults.downloadSubtitles,
+      embedSubtitles: defaults.embedSubtitles,
+      sponsorBlockEnabled: defaults.sponsorBlockEnabled,
+      tiktokSlideshowIncludeAudio: defaults.tiktokSlideshowIncludeAudio,
+    );
   }
 
   void updateUrl(String raw) {
     final trimmed = raw.trim();
     final detected = detectMediaPlatform(trimmed);
+    final changed = trimmed != state.inputUrl;
     state = state.copyWith(
       inputUrl: trimmed,
       detectedPlatform: detected,
       clearError: true,
-      clearProbe: trimmed != state.inputUrl,
-      clearFormat: trimmed != state.inputUrl,
+      clearProbe: changed,
+      clearFormat: changed,
+      selectedPlaylistIndices: changed ? const {} : state.selectedPlaylistIndices,
     );
   }
 
@@ -201,9 +329,55 @@ class HomeProbeNotifier extends Notifier<HomeProbeState> {
     state = state.copyWith(selectedFormat: option);
   }
 
+  void setVideoContainer(String container) {
+    state = state.copyWith(videoContainer: container);
+  }
+
+  void setDownloadSubtitles(bool enabled) {
+    state = state.copyWith(downloadSubtitles: enabled);
+  }
+
+  void setEmbedSubtitles(bool enabled) {
+    state = state.copyWith(embedSubtitles: enabled);
+  }
+
+  void setSponsorBlockEnabled(bool enabled) {
+    state = state.copyWith(sponsorBlockEnabled: enabled);
+  }
+
+  void setTiktokSlideshowIncludeAudio(bool enabled) {
+    state = state.copyWith(tiktokSlideshowIncludeAudio: enabled);
+  }
+
+  void togglePlaylistEntry(int index) {
+    final next = {...state.selectedPlaylistIndices};
+    if (!next.remove(index)) {
+      next.add(index);
+    }
+    state = state.copyWith(selectedPlaylistIndices: next);
+  }
+
+  void selectAllPlaylistEntries() {
+    final entries = state.probeResult?.playlistEntries ?? const [];
+    state = state.copyWith(
+      selectedPlaylistIndices: {for (final entry in entries) entry.index},
+    );
+  }
+
+  void clearPlaylistSelection() {
+    state = state.copyWith(selectedPlaylistIndices: const {});
+  }
+
   void clear() {
     final defaults = ref.read(settingsProvider);
-    state = HomeProbeState(selectedAudioFormat: defaults.defaultAudioFormat);
+    state = HomeProbeState(
+      selectedAudioFormat: defaults.defaultAudioFormat,
+      videoContainer: defaults.defaultVideoContainer,
+      downloadSubtitles: defaults.downloadSubtitles,
+      embedSubtitles: defaults.embedSubtitles,
+      sponsorBlockEnabled: defaults.sponsorBlockEnabled,
+      tiktokSlideshowIncludeAudio: defaults.tiktokSlideshowIncludeAudio,
+    );
   }
 
   Future<void> probeCurrentUrl() => probeUrl(state.inputUrl);
@@ -218,6 +392,7 @@ class HomeProbeNotifier extends Notifier<HomeProbeState> {
         isProbing: false,
         clearProbe: true,
         clearFormat: true,
+        selectedPlaylistIndices: const {},
         errorMessage:
             'Only TikTok, Instagram, and YouTube links are supported.',
       );
@@ -232,19 +407,35 @@ class HomeProbeNotifier extends Notifier<HomeProbeState> {
       clearError: true,
       clearProbe: true,
       clearFormat: true,
+      selectedPlaylistIndices: const {},
       selectedAudioFormat: settings.defaultAudioFormat,
+      videoContainer: settings.defaultVideoContainer,
+      downloadSubtitles: settings.downloadSubtitles,
+      embedSubtitles: settings.embedSubtitles,
+      sponsorBlockEnabled: settings.sponsorBlockEnabled,
+      tiktokSlideshowIncludeAudio: settings.tiktokSlideshowIncludeAudio,
     );
 
     try {
-      final result = await ref.read(urlRouterProvider).probe(url);
+      final cookiesPath =
+          await ref.read(cookieAuthServiceProvider).resolveCookiesPath();
+      final result = await ref.read(urlRouterProvider).probe(
+            url,
+            cookiesPath: cookiesPath,
+            allowPlaylist: isYouTubePlaylistUrl(url),
+          );
       final preferred = pickPreferredFormat(
         result.qualities,
         settings.defaultQuality,
       );
+      final initialPlaylistSelection = result.isPlaylist
+          ? {for (final entry in result.playlistEntries) entry.index}
+          : const <int>{};
       state = state.copyWith(
         isProbing: false,
         probeResult: result,
         selectedFormat: preferred,
+        selectedPlaylistIndices: initialPlaylistSelection,
       );
     } catch (e) {
       state = state.copyWith(
@@ -361,6 +552,11 @@ class DownloadQueueNotifier extends Notifier<List<QueueItem>> {
     String? qualityLabel,
     bool audioOnly = false,
     String? audioFormat,
+    String? mergeOutputFormat,
+    bool downloadSubtitles = false,
+    bool embedSubtitles = true,
+    String? subtitleLangs,
+    List<String> sponsorBlockCategories = const [],
   }) async {
     if (platform == MediaPlatform.unsupported) {
       throw UnsupportedPlatformException(url);
@@ -376,12 +572,60 @@ class DownloadQueueNotifier extends Notifier<List<QueueItem>> {
       qualityLabel: qualityLabel,
       audioOnly: audioOnly,
       audioFormat: audioFormat,
+      mergeOutputFormat: mergeOutputFormat,
+      downloadSubtitles: downloadSubtitles,
+      embedSubtitles: embedSubtitles,
+      subtitleLangs: subtitleLangs,
+      sponsorBlockCategories: sponsorBlockCategories,
     );
     if (_disposed) return created;
 
     state = [created, ...state];
     _pumpQueue();
     return created;
+  }
+
+  Future<List<QueueItem>> enqueuePlaylistSelection({
+    required List<PlaylistEntry> entries,
+    required DownloadEngine preferredEngine,
+    String? formatSelector,
+    String? qualityLabel,
+    bool audioOnly = false,
+    String? audioFormat,
+    String? mergeOutputFormat,
+    bool downloadSubtitles = false,
+    bool embedSubtitles = true,
+    String? subtitleLangs,
+    List<String> sponsorBlockCategories = const [],
+  }) async {
+    final storage = ref.read(queueStorageProvider);
+    final createdItems = <QueueItem>[];
+    for (final entry in entries) {
+      final platform = detectMediaPlatform(entry.url);
+      if (platform == MediaPlatform.unsupported) continue;
+      final created = await storage.enqueue(
+        url: entry.url,
+        platform: platform,
+        title: entry.title,
+        engine: preferredEngine,
+        formatSelector: formatSelector,
+        qualityLabel: qualityLabel,
+        audioOnly: audioOnly,
+        audioFormat: audioFormat,
+        mergeOutputFormat: mergeOutputFormat,
+        downloadSubtitles: downloadSubtitles,
+        embedSubtitles: embedSubtitles,
+        subtitleLangs: subtitleLangs,
+        sponsorBlockCategories: sponsorBlockCategories,
+      );
+      if (_disposed) return createdItems;
+      createdItems.add(created);
+    }
+    if (createdItems.isNotEmpty) {
+      state = [...createdItems.reversed, ...state];
+      _pumpQueue();
+    }
+    return createdItems;
   }
 
   Future<void> cancelTask(String taskId) async {
@@ -508,6 +752,8 @@ class DownloadQueueNotifier extends Notifier<List<QueueItem>> {
       final stagingRoot = await ref.read(stagingDirProvider)();
       final taskStagingDir = '$stagingRoot/$taskId';
       await ref.read(ensureDirExistsProvider)(taskStagingDir);
+      final cookiesPath =
+          await ref.read(cookieAuthServiceProvider).resolveCookiesPath();
 
       final request = DownloadRequest(
         taskId: taskId,
@@ -517,6 +763,12 @@ class DownloadQueueNotifier extends Notifier<List<QueueItem>> {
         quality: snapshot.qualityLabel,
         audioOnly: snapshot.audioOnly,
         audioFormat: snapshot.audioFormat,
+        cookiesPath: cookiesPath,
+        mergeOutputFormat: snapshot.mergeOutputFormat,
+        downloadSubtitles: snapshot.downloadSubtitles,
+        embedSubtitles: snapshot.embedSubtitles,
+        subtitleLangs: snapshot.subtitleLangs,
+        sponsorBlockCategories: snapshot.sponsorBlockCategories,
       );
 
       final maxAttempts = settings.autoRetry ? 3 : 1;
@@ -593,18 +845,31 @@ class DownloadQueueNotifier extends Notifier<List<QueueItem>> {
       String? finalOutputPath = outcome.outputPath;
       String? contentUri;
       int? finalSize = outcome.fileSizeBytes;
+      var exportedCount = 1;
 
-      if (finalOutputPath != null &&
+      _replaceItem(
+        taskId,
+        (item) => item.copyWith(
+          phase: DownloadPhase.saving,
+          progress: 100.0,
+          updatedAtMs: DateTime.now().millisecondsSinceEpoch,
+        ),
+      );
+
+      final batchExported = await platformClient.exportStagingDirectory(
+        stagingDirPath: taskStagingDir,
+        platform: snapshot.platform.name,
+      );
+      if (batchExported != null) {
+        finalOutputPath = batchExported.primaryDisplayPath;
+        contentUri = batchExported.primaryUri;
+        if (batchExported.totalSizeBytes > 0) {
+          finalSize = batchExported.totalSizeBytes;
+        }
+        exportedCount = batchExported.exportedCount;
+      } else if (finalOutputPath != null &&
           finalOutputPath.isNotEmpty &&
           finalOutputPath != taskStagingDir) {
-        _replaceItem(
-          taskId,
-          (item) => item.copyWith(
-            phase: DownloadPhase.saving,
-            progress: 100.0,
-            updatedAtMs: DateTime.now().millisecondsSinceEpoch,
-          ),
-        );
         final exported = await platformClient.exportToMediaStore(
           stagedFilePath: finalOutputPath,
           platform: snapshot.platform.name,
@@ -634,6 +899,7 @@ class DownloadQueueNotifier extends Notifier<List<QueueItem>> {
           progress: 100.0,
           outputPath: finalOutputPath,
           contentUri: contentUri,
+          exportedCount: exportedCount,
           totalBytes: finalSize,
           clearError: true,
           updatedAtMs: DateTime.now().millisecondsSinceEpoch,

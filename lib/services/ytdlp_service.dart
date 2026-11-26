@@ -7,11 +7,25 @@ import '../models/download_models.dart';
 import '../models/media_platform.dart';
 import '../models/media_probe.dart';
 
+bool isYouTubePlaylistUrl(String rawUrl) {
+  final parsed = Uri.tryParse(rawUrl.trim());
+  if (parsed == null) return false;
+  if (detectMediaPlatform(rawUrl) != MediaPlatform.youtube) return false;
+  final listId = parsed.queryParameters['list']?.trim() ?? '';
+  if (listId.isEmpty) return false;
+  final path = parsed.path.toLowerCase();
+  return path.contains('playlist') || !path.contains('/watch');
+}
+
 abstract interface class YtDlpEngineClient {
   Future<String?> init();
   Future<String?> getVersion();
   Future<String?> updateYtDlp({String channel = 'stable'});
-  Future<MediaProbeResult> probe(String url, {String? cookiesPath});
+  Future<MediaProbeResult> probe(
+    String url, {
+    String? cookiesPath,
+    bool allowPlaylist = false,
+  });
   Future<DownloadOutcome> download(
     DownloadRequest request, {
     void Function(DownloadProgressEvent event)? onProgress,
@@ -53,10 +67,15 @@ class YtDlpService implements YtDlpEngineClient {
   }
 
   @override
-  Future<MediaProbeResult> probe(String url, {String? cookiesPath}) async {
+  Future<MediaProbeResult> probe(
+    String url, {
+    String? cookiesPath,
+    bool allowPlaylist = false,
+  }) async {
     final rawJson = await _methodChannel.invokeMethod<String>('extractInfo', {
       'url': url,
       'cookiesPath': cookiesPath,
+      'allowPlaylist': allowPlaylist,
     });
     if (rawJson == null || rawJson.trim().isEmpty) {
       throw StateError('yt-dlp returned empty metadata JSON for $url');
@@ -98,16 +117,28 @@ class YtDlpService implements YtDlpEngineClient {
         'audioOnly': request.audioOnly,
         'audioFormat': request.audioFormat ?? 'm4a',
         'cookiesPath': request.cookiesPath,
+        'allowPlaylist': request.allowPlaylist,
+        'playlistItems': request.playlistItems,
+        'mergeOutputFormat': request.mergeOutputFormat ?? 'mp4',
+        'downloadSubtitles': request.downloadSubtitles,
+        'embedSubtitles': request.embedSubtitles,
+        'subtitleLangs': request.subtitleLangs ?? 'en,id',
+        'sponsorBlockCategories': request.sponsorBlockCategories,
         'extraArgs': request.extraArgs,
       });
 
       final resolvedPath = result?['outputPath'] as String?;
+      final rawOutputPaths =
+          result?['outputPaths'] as List<dynamic>? ?? const [];
+      final outputPaths =
+          rawOutputPaths.whereType<String>().toList(growable: false);
       return DownloadOutcome(
         taskId: request.taskId,
         engine: DownloadEngine.ytDlp,
         outputPath: (resolvedPath != null && resolvedPath.isNotEmpty)
             ? resolvedPath
             : request.outputDir,
+        outputPaths: outputPaths,
       );
     } on PlatformException catch (e) {
       if (e.code == 'CANCELLED') {
@@ -144,6 +175,62 @@ class YtDlpService implements YtDlpEngineClient {
         '';
     final duration = (decoded['duration'] as num?)?.toDouble();
     final thumbnail = decoded['thumbnail'] as String?;
+
+    if (decoded['_type'] == 'playlist') {
+      final rawEntries = decoded['entries'] as List<dynamic>? ?? const [];
+      final entries = <PlaylistEntry>[];
+      for (var i = 0; i < rawEntries.length; i++) {
+        final item = rawEntries[i];
+        if (item is! Map<String, dynamic>) continue;
+        final id = (item['id'] as String?) ?? '${i + 1}';
+        final rawTitle = (item['title'] as String?)?.trim();
+        final entryTitle =
+            (rawTitle != null && rawTitle.isNotEmpty) ? rawTitle : 'Video ${i + 1}';
+        final rawUrl = (item['webpage_url'] as String?) ??
+            (item['url'] as String?) ??
+            '';
+        final resolvedUrl = rawUrl.startsWith('http')
+            ? rawUrl
+            : 'https://www.youtube.com/watch?v=$id';
+        entries.add(
+          PlaylistEntry(
+            index: i + 1,
+            id: id,
+            title: entryTitle,
+            url: resolvedUrl,
+            durationSeconds: (item['duration'] as num?)?.toDouble(),
+            thumbnailUrl: item['thumbnail'] as String?,
+          ),
+        );
+      }
+
+      if (entries.isNotEmpty) {
+        final webpage = (decoded['webpage_url'] as String?) ?? sourceUrl;
+        final presetQualities = [2160, 1440, 1080, 720, 480]
+            .map(
+              (h) => MediaFormatOption(
+                formatId: 'bv*[height<=$h]+ba/b[height<=$h]/b',
+                label: '${h}p',
+                width: 0,
+                height: h,
+                format: 'mp4',
+                url: webpage,
+              ),
+            )
+            .toList(growable: false);
+        return MediaProbeResult(
+          platform: platform,
+          engine: DownloadEngine.ytDlp,
+          title: (title == null || title.isEmpty) ? 'YouTube Playlist' : title,
+          author: uploader,
+          thumbnailUrl: thumbnail ?? entries.first.thumbnailUrl,
+          mediaType: 'playlist',
+          qualities: presetQualities,
+          playlistEntries: List.unmodifiable(entries),
+        );
+      }
+    }
+
     final formatsRaw = decoded['formats'] as List<dynamic>? ?? const [];
 
     final seenHeights = <int>{};
@@ -189,6 +276,20 @@ class YtDlpService implements YtDlpEngineClient {
       );
     }
 
+    final subtitleLangs = <String>{};
+    for (final field in const ['subtitles', 'automatic_captions']) {
+      final rawMap = decoded[field];
+      if (rawMap is Map<String, dynamic>) {
+        for (final lang in rawMap.keys) {
+          final clean = lang.trim();
+          if (clean.isNotEmpty && clean != 'live_chat') {
+            subtitleLangs.add(clean);
+          }
+        }
+      }
+    }
+    final sortedSubtitles = subtitleLangs.toList()..sort();
+
     return MediaProbeResult(
       platform: platform,
       engine: DownloadEngine.ytDlp,
@@ -198,6 +299,7 @@ class YtDlpService implements YtDlpEngineClient {
       thumbnailUrl: thumbnail,
       mediaType: 'video',
       qualities: options,
+      availableSubtitles: List.unmodifiable(sortedSubtitles),
     );
   }
 }

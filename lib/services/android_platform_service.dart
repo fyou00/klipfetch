@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 
+import '../models/auth_models.dart';
+
 class ExportedMediaFile {
   const ExportedMediaFile({
     required this.uri,
@@ -14,6 +16,24 @@ class ExportedMediaFile {
   final String displayPath;
   final String fileName;
   final int sizeBytes;
+}
+
+class BatchExportedMedia {
+  const BatchExportedMedia({
+    required this.primaryUri,
+    required this.primaryDisplayPath,
+    required this.fileName,
+    required this.totalSizeBytes,
+    required this.exportedCount,
+    required this.displayPaths,
+  });
+
+  final String primaryUri;
+  final String primaryDisplayPath;
+  final String fileName;
+  final int totalSizeBytes;
+  final int exportedCount;
+  final List<String> displayPaths;
 }
 
 abstract interface class AndroidPlatformClient {
@@ -42,6 +62,23 @@ abstract interface class AndroidPlatformClient {
   Future<ExportedMediaFile?> exportToMediaStore({
     required String stagedFilePath,
     required String platform,
+  });
+
+  Future<BatchExportedMedia?> exportStagingDirectory({
+    required String stagingDirPath,
+    required String platform,
+  });
+
+  Future<AuthBrowserCapture> openAuthBrowser({
+    required String platform,
+    required String loginUrl,
+    required List<String> cookieUrls,
+    required List<String> authCookieNames,
+  });
+
+  Future<bool> clearWebViewCookies({
+    List<String> cookieUrls = const [],
+    bool clearAll = false,
   });
 
   Future<bool> openFile(String uriOrPath);
@@ -165,6 +202,78 @@ class AndroidPlatformService implements AndroidPlatformClient {
       );
     } on MissingPluginException {
       return null;
+    }
+  }
+
+  @override
+  Future<BatchExportedMedia?> exportStagingDirectory({
+    required String stagingDirPath,
+    required String platform,
+  }) async {
+    try {
+      final result = await _methodChannel
+          .invokeMethod<Map<dynamic, dynamic>>('exportStagingDirectory', {
+        'stagingDirPath': stagingDirPath,
+        'platform': platform,
+      });
+      if (result == null) return null;
+      final rawPaths = result['displayPaths'] as List<dynamic>? ?? const [];
+      return BatchExportedMedia(
+        primaryUri: (result['primaryUri'] as String?) ?? stagingDirPath,
+        primaryDisplayPath:
+            (result['primaryDisplayPath'] as String?) ?? stagingDirPath,
+        fileName: (result['fileName'] as String?) ?? '',
+        totalSizeBytes: (result['totalSizeBytes'] as num?)?.toInt() ?? 0,
+        exportedCount: (result['exportedCount'] as num?)?.toInt() ?? 1,
+        displayPaths: rawPaths.whereType<String>().toList(growable: false),
+      );
+    } on MissingPluginException {
+      return null;
+    }
+  }
+
+  @override
+  Future<AuthBrowserCapture> openAuthBrowser({
+    required String platform,
+    required String loginUrl,
+    required List<String> cookieUrls,
+    required List<String> authCookieNames,
+  }) async {
+    try {
+      final result = await _methodChannel
+          .invokeMethod<Map<dynamic, dynamic>>('openAuthBrowser', {
+        'platform': platform,
+        'loginUrl': loginUrl,
+        'cookieUrls': cookieUrls,
+        'authCookieNames': authCookieNames,
+      });
+      if (result == null) {
+        return const AuthBrowserCapture(cancelled: true);
+      }
+      return AuthBrowserCapture(
+        cancelled: (result['cancelled'] as bool?) ?? true,
+        netscapeCookies: (result['netscapeCookies'] as String?) ?? '',
+        cookieCount: (result['cookieCount'] as num?)?.toInt() ?? 0,
+        hasAuthCookie: (result['hasAuthCookie'] as bool?) ?? false,
+      );
+    } on MissingPluginException {
+      return const AuthBrowserCapture(cancelled: true);
+    }
+  }
+
+  @override
+  Future<bool> clearWebViewCookies({
+    List<String> cookieUrls = const [],
+    bool clearAll = false,
+  }) async {
+    try {
+      return await _methodChannel.invokeMethod<bool>('clearWebViewCookies', {
+            'cookieUrls': cookieUrls,
+            'clearAll': clearAll,
+          }) ??
+          false;
+    } on MissingPluginException {
+      return true;
     }
   }
 

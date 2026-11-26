@@ -7,6 +7,22 @@ import '../src/rust/api/core.dart' as rust_core;
 import '../src/rust/api/queue.dart' as rust_queue;
 import '../src/rust/frb_generated.dart';
 
+class CookieDomainStatusInfo {
+  const CookieDomainStatusInfo({
+    required this.domain,
+    required this.hasCookies,
+    required this.cookieCount,
+    required this.hasAuthCookie,
+    this.updatedAtMs,
+  });
+
+  final String domain;
+  final bool hasCookies;
+  final int cookieCount;
+  final bool hasAuthCookie;
+  final int? updatedAtMs;
+}
+
 abstract interface class NativeEngineClient {
   Future<void> init({String? dataDir});
   MediaPlatform detectPlatform(String url);
@@ -18,6 +34,8 @@ abstract interface class NativeEngineClient {
   Future<bool> cancel(String taskId);
   Future<String> saveNetscapeCookies(String domain, String netscapeContent);
   Future<void> clearDomainCookies(String domain);
+  Future<CookieDomainStatusInfo> getCookieDomainStatus(String domain);
+  Future<String?> getSharedCookiesPath();
 }
 
 class RustCoreService implements NativeEngineClient {
@@ -145,6 +163,23 @@ class RustCoreService implements NativeEngineClient {
   @override
   Future<void> clearDomainCookies(String domain) {
     return rust_core.clearDomainCookies(domain: domain);
+  }
+
+  @override
+  Future<CookieDomainStatusInfo> getCookieDomainStatus(String domain) async {
+    final status = await rust_core.getCookieDomainStatus(domain: domain);
+    return CookieDomainStatusInfo(
+      domain: status.domain,
+      hasCookies: status.hasCookies,
+      cookieCount: status.cookieCount,
+      hasAuthCookie: status.hasAuthCookie,
+      updatedAtMs: status.updatedAtMs?.toInt(),
+    );
+  }
+
+  @override
+  Future<String?> getSharedCookiesPath() {
+    return rust_core.getSharedCookiesPath();
   }
 
   Future<rust_queue.QueueTaskRecord> enqueueTask({

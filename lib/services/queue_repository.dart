@@ -13,6 +13,11 @@ abstract interface class QueueStorage {
     String? qualityLabel,
     bool audioOnly = false,
     String? audioFormat,
+    String? mergeOutputFormat,
+    bool downloadSubtitles = false,
+    bool embedSubtitles = true,
+    String? subtitleLangs,
+    List<String> sponsorBlockCategories = const [],
   });
 
   Future<List<QueueItem>> list();
@@ -38,6 +43,11 @@ class RustSqliteQueueStorage implements QueueStorage {
     String? qualityLabel,
     bool audioOnly = false,
     String? audioFormat,
+    String? mergeOutputFormat,
+    bool downloadSubtitles = false,
+    bool embedSubtitles = true,
+    String? subtitleLangs,
+    List<String> sponsorBlockCategories = const [],
   }) async {
     final record = await rust_queue.enqueueTask(
       url: url,
@@ -51,6 +61,11 @@ class RustSqliteQueueStorage implements QueueStorage {
       qualityLabel: qualityLabel,
       audioOnly: audioOnly,
       audioFormat: audioFormat,
+      mergeOutputFormat: mergeOutputFormat,
+      downloadSubtitles: downloadSubtitles,
+      embedSubtitles: embedSubtitles,
+      subtitleLangs: subtitleLangs,
+      sponsorBlockCategories: sponsorBlockCategories,
     );
   }
 
@@ -86,6 +101,11 @@ class RustSqliteQueueStorage implements QueueStorage {
     String? qualityLabel,
     bool audioOnly = false,
     String? audioFormat,
+    String? mergeOutputFormat,
+    bool downloadSubtitles = false,
+    bool embedSubtitles = true,
+    String? subtitleLangs,
+    List<String> sponsorBlockCategories = const [],
   }) {
     return QueueItem(
       id: record.id,
@@ -105,6 +125,11 @@ class RustSqliteQueueStorage implements QueueStorage {
       qualityLabel: qualityLabel,
       audioOnly: audioOnly,
       audioFormat: audioFormat,
+      mergeOutputFormat: mergeOutputFormat,
+      downloadSubtitles: downloadSubtitles,
+      embedSubtitles: embedSubtitles,
+      subtitleLangs: subtitleLangs,
+      sponsorBlockCategories: sponsorBlockCategories,
       outputPath: record.outputPath,
       errorMessage: record.errorMessage,
     );
@@ -175,6 +200,11 @@ class InMemoryQueueStorage implements QueueStorage {
     String? qualityLabel,
     bool audioOnly = false,
     String? audioFormat,
+    String? mergeOutputFormat,
+    bool downloadSubtitles = false,
+    bool embedSubtitles = true,
+    String? subtitleLangs,
+    List<String> sponsorBlockCategories = const [],
   }) async {
     _counter++;
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -191,6 +221,11 @@ class InMemoryQueueStorage implements QueueStorage {
       qualityLabel: qualityLabel,
       audioOnly: audioOnly,
       audioFormat: audioFormat,
+      mergeOutputFormat: mergeOutputFormat,
+      downloadSubtitles: downloadSubtitles,
+      embedSubtitles: embedSubtitles,
+      subtitleLangs: subtitleLangs,
+      sponsorBlockCategories: sponsorBlockCategories,
     );
     _items.insert(0, item);
     return item;

@@ -30,6 +30,13 @@ class DownloadRequest {
     this.audioOnly = false,
     this.audioFormat,
     this.cookiesPath,
+    this.mergeOutputFormat,
+    this.downloadSubtitles = false,
+    this.embedSubtitles = true,
+    this.subtitleLangs,
+    this.sponsorBlockCategories = const [],
+    this.allowPlaylist = false,
+    this.playlistItems,
     this.extraArgs = const [],
   });
 
@@ -42,6 +49,13 @@ class DownloadRequest {
   final bool audioOnly;
   final String? audioFormat;
   final String? cookiesPath;
+  final String? mergeOutputFormat;
+  final bool downloadSubtitles;
+  final bool embedSubtitles;
+  final String? subtitleLangs;
+  final List<String> sponsorBlockCategories;
+  final bool allowPlaylist;
+  final String? playlistItems;
   final List<String> extraArgs;
 }
 
@@ -76,6 +90,7 @@ class DownloadOutcome {
     this.usedFallback = false,
     this.fallbackReason,
     this.outputPath,
+    this.outputPaths = const [],
     this.fileSizeBytes,
   });
 
@@ -84,6 +99,7 @@ class DownloadOutcome {
   final bool usedFallback;
   final String? fallbackReason;
   final String? outputPath;
+  final List<String> outputPaths;
   final int? fileSizeBytes;
 
   DownloadOutcome copyWith({
@@ -91,6 +107,7 @@ class DownloadOutcome {
     bool? usedFallback,
     String? fallbackReason,
     String? outputPath,
+    List<String>? outputPaths,
     int? fileSizeBytes,
   }) {
     return DownloadOutcome(
@@ -99,6 +116,7 @@ class DownloadOutcome {
       usedFallback: usedFallback ?? this.usedFallback,
       fallbackReason: fallbackReason ?? this.fallbackReason,
       outputPath: outputPath ?? this.outputPath,
+      outputPaths: outputPaths ?? this.outputPaths,
       fileSizeBytes: fileSizeBytes ?? this.fileSizeBytes,
     );
   }
