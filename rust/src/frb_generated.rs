@@ -662,20 +662,6 @@ impl SseDecode for Vec<crate::api::queue::QueueTaskRecord> {
     }
 }
 
-impl SseDecode for crate::api::core::NativeDownloadResult {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_filePath = <String>::sse_decode(deserializer);
-        let mut var_fileSizeBytes = <u64>::sse_decode(deserializer);
-        let mut var_durationSeconds = <f64>::sse_decode(deserializer);
-        return crate::api::core::NativeDownloadResult {
-            file_path: var_filePath,
-            file_size_bytes: var_fileSizeBytes,
-            duration_seconds: var_durationSeconds,
-        };
-    }
-}
-
 impl SseDecode for crate::api::core::NativeMediaInfo {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -708,6 +694,7 @@ impl SseDecode for crate::api::core::NativeProgressEvent {
         let mut var_speedBps = <Option<f64>>::sse_decode(deserializer);
         let mut var_etaSeconds = <Option<u64>>::sse_decode(deserializer);
         let mut var_phase = <Option<String>>::sse_decode(deserializer);
+        let mut var_outputPath = <Option<String>>::sse_decode(deserializer);
         return crate::api::core::NativeProgressEvent {
             percent: var_percent,
             downloaded_bytes: var_downloadedBytes,
@@ -715,6 +702,7 @@ impl SseDecode for crate::api::core::NativeProgressEvent {
             speed_bps: var_speedBps,
             eta_seconds: var_etaSeconds,
             phase: var_phase,
+            output_path: var_outputPath,
         };
     }
 }
@@ -906,28 +894,6 @@ fn pde_ffi_dispatcher_sync_impl(
 // Section: rust2dart
 
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::core::NativeDownloadResult {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.file_path.into_into_dart().into_dart(),
-            self.file_size_bytes.into_into_dart().into_dart(),
-            self.duration_seconds.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::core::NativeDownloadResult
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::core::NativeDownloadResult>
-    for crate::api::core::NativeDownloadResult
-{
-    fn into_into_dart(self) -> crate::api::core::NativeDownloadResult {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::core::NativeMediaInfo {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -963,6 +929,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::core::NativeProgressEvent {
             self.speed_bps.into_into_dart().into_dart(),
             self.eta_seconds.into_into_dart().into_dart(),
             self.phase.into_into_dart().into_dart(),
+            self.output_path.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -1164,15 +1131,6 @@ impl SseEncode for Vec<crate::api::queue::QueueTaskRecord> {
     }
 }
 
-impl SseEncode for crate::api::core::NativeDownloadResult {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(self.file_path, serializer);
-        <u64>::sse_encode(self.file_size_bytes, serializer);
-        <f64>::sse_encode(self.duration_seconds, serializer);
-    }
-}
-
 impl SseEncode for crate::api::core::NativeMediaInfo {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -1195,6 +1153,7 @@ impl SseEncode for crate::api::core::NativeProgressEvent {
         <Option<f64>>::sse_encode(self.speed_bps, serializer);
         <Option<u64>>::sse_encode(self.eta_seconds, serializer);
         <Option<String>>::sse_encode(self.phase, serializer);
+        <Option<String>>::sse_encode(self.output_path, serializer);
     }
 }
 

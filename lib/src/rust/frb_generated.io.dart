@@ -60,9 +60,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<QueueTaskRecord> dco_decode_list_queue_task_record(dynamic raw);
 
   @protected
-  NativeDownloadResult dco_decode_native_download_result(dynamic raw);
-
-  @protected
   NativeMediaInfo dco_decode_native_media_info(dynamic raw);
 
   @protected
@@ -139,11 +136,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<QueueTaskRecord> sse_decode_list_queue_task_record(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  NativeDownloadResult sse_decode_native_download_result(
     SseDeserializer deserializer,
   );
 
@@ -238,12 +230,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_queue_task_record(
     List<QueueTaskRecord> self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_native_download_result(
-    NativeDownloadResult self,
     SseSerializer serializer,
   );
 

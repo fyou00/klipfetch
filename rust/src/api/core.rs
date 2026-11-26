@@ -73,13 +73,7 @@ pub struct NativeProgressEvent {
     pub speed_bps: Option<f64>,
     pub eta_seconds: Option<u64>,
     pub phase: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-pub struct NativeDownloadResult {
-    pub file_path: String,
-    pub file_size_bytes: u64,
-    pub duration_seconds: f64,
+    pub output_path: Option<String>,
 }
 
 fn sanitize_domain(domain: &str) -> anyhow::Result<String> {
@@ -168,7 +162,7 @@ pub async fn download_native_media(
     quality: Option<String>,
     audio_only: bool,
     sink: StreamSink<NativeProgressEvent>,
-) -> anyhow::Result<NativeDownloadResult> {
+) -> anyhow::Result<()> {
     let platform = Platform::detect(&url)
         .ok_or_else(|| anyhow!("UNSUPPORTED_PLATFORM: URL must belong to TikTok, Instagram, or YouTube"))?;
 
@@ -214,15 +208,17 @@ pub async fn download_native_media(
     };
 
     let (tx, mut rx) = mpsc::channel::<ProgressUpdate>(32);
+    let forward_sink = sink.clone();
     let forward_handle = tokio::spawn(async move {
         while let Some(update) = rx.recv().await {
-            let _ = sink.add(NativeProgressEvent {
+            let _ = forward_sink.add(NativeProgressEvent {
                 percent: update.percent,
                 downloaded_bytes: update.downloaded_bytes,
                 total_bytes: update.total_bytes,
                 speed_bps: update.speed_bps,
                 eta_seconds: update.eta_seconds,
                 phase: update.phase,
+                output_path: None,
             });
         }
     });
@@ -244,11 +240,16 @@ pub async fn download_native_media(
     let _ = forward_handle.await;
 
     let done = result?;
-    Ok(NativeDownloadResult {
-        file_path: done.file_path.to_string_lossy().to_string(),
-        file_size_bytes: done.file_size_bytes,
-        duration_seconds: done.duration_seconds,
-    })
+    let _ = sink.add(NativeProgressEvent {
+        percent: 100.0,
+        downloaded_bytes: Some(done.file_size_bytes),
+        total_bytes: Some(done.file_size_bytes),
+        speed_bps: None,
+        eta_seconds: Some(0),
+        phase: Some("completed".to_string()),
+        output_path: Some(done.file_path.to_string_lossy().to_string()),
+    });
+    Ok(())
 }
 
 #[frb(sync)]

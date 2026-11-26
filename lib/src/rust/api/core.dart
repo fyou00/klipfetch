@@ -9,7 +9,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `cancellation_map`, `format_media_type`, `sanitize_domain`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `ActiveTaskGuard`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`
 
 Future<void> initCore({required String dataDir}) =>
     RustLib.instance.api.crateApiCoreInitCore(dataDir: dataDir);
@@ -47,31 +47,6 @@ Future<String> saveNetscapeCookies({
 
 Future<void> clearDomainCookies({required String domain}) =>
     RustLib.instance.api.crateApiCoreClearDomainCookies(domain: domain);
-
-class NativeDownloadResult {
-  final String filePath;
-  final BigInt fileSizeBytes;
-  final double durationSeconds;
-
-  const NativeDownloadResult({
-    required this.filePath,
-    required this.fileSizeBytes,
-    required this.durationSeconds,
-  });
-
-  @override
-  int get hashCode =>
-      filePath.hashCode ^ fileSizeBytes.hashCode ^ durationSeconds.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is NativeDownloadResult &&
-          runtimeType == other.runtimeType &&
-          filePath == other.filePath &&
-          fileSizeBytes == other.fileSizeBytes &&
-          durationSeconds == other.durationSeconds;
-}
 
 class NativeMediaInfo {
   final String title;
@@ -123,6 +98,7 @@ class NativeProgressEvent {
   final double? speedBps;
   final BigInt? etaSeconds;
   final String? phase;
+  final String? outputPath;
 
   const NativeProgressEvent({
     required this.percent,
@@ -131,6 +107,7 @@ class NativeProgressEvent {
     this.speedBps,
     this.etaSeconds,
     this.phase,
+    this.outputPath,
   });
 
   @override
@@ -140,7 +117,8 @@ class NativeProgressEvent {
       totalBytes.hashCode ^
       speedBps.hashCode ^
       etaSeconds.hashCode ^
-      phase.hashCode;
+      phase.hashCode ^
+      outputPath.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -152,7 +130,8 @@ class NativeProgressEvent {
           totalBytes == other.totalBytes &&
           speedBps == other.speedBps &&
           etaSeconds == other.etaSeconds &&
-          phase == other.phase;
+          phase == other.phase &&
+          outputPath == other.outputPath;
 }
 
 class NativeQualityOption {

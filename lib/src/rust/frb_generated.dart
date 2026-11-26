@@ -278,7 +278,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             );
           },
           codec: SseCodec(
-            decodeSuccessData: sse_decode_native_download_result,
+            decodeSuccessData: sse_decode_unit,
             decodeErrorData: sse_decode_AnyhowException,
           ),
           constMeta: kCrateApiCoreDownloadNativeMediaConstMeta,
@@ -667,19 +667,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  NativeDownloadResult dco_decode_native_download_result(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-    return NativeDownloadResult(
-      filePath: dco_decode_String(arr[0]),
-      fileSizeBytes: dco_decode_u_64(arr[1]),
-      durationSeconds: dco_decode_f_64(arr[2]),
-    );
-  }
-
-  @protected
   NativeMediaInfo dco_decode_native_media_info(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -700,8 +687,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   NativeProgressEvent dco_decode_native_progress_event(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 6)
-      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
     return NativeProgressEvent(
       percent: dco_decode_f_64(arr[0]),
       downloadedBytes: dco_decode_opt_box_autoadd_u_64(arr[1]),
@@ -709,6 +696,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       speedBps: dco_decode_opt_box_autoadd_f_64(arr[3]),
       etaSeconds: dco_decode_opt_box_autoadd_u_64(arr[4]),
       phase: dco_decode_opt_String(arr[5]),
+      outputPath: dco_decode_opt_String(arr[6]),
     );
   }
 
@@ -896,21 +884,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  NativeDownloadResult sse_decode_native_download_result(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_filePath = sse_decode_String(deserializer);
-    var var_fileSizeBytes = sse_decode_u_64(deserializer);
-    var var_durationSeconds = sse_decode_f_64(deserializer);
-    return NativeDownloadResult(
-      filePath: var_filePath,
-      fileSizeBytes: var_fileSizeBytes,
-      durationSeconds: var_durationSeconds,
-    );
-  }
-
-  @protected
   NativeMediaInfo sse_decode_native_media_info(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_title = sse_decode_String(deserializer);
@@ -942,6 +915,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_speedBps = sse_decode_opt_box_autoadd_f_64(deserializer);
     var var_etaSeconds = sse_decode_opt_box_autoadd_u_64(deserializer);
     var var_phase = sse_decode_opt_String(deserializer);
+    var var_outputPath = sse_decode_opt_String(deserializer);
     return NativeProgressEvent(
       percent: var_percent,
       downloadedBytes: var_downloadedBytes,
@@ -949,6 +923,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       speedBps: var_speedBps,
       etaSeconds: var_etaSeconds,
       phase: var_phase,
+      outputPath: var_outputPath,
     );
   }
 
@@ -1173,17 +1148,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_native_download_result(
-    NativeDownloadResult self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.filePath, serializer);
-    sse_encode_u_64(self.fileSizeBytes, serializer);
-    sse_encode_f_64(self.durationSeconds, serializer);
-  }
-
-  @protected
   void sse_encode_native_media_info(
     NativeMediaInfo self,
     SseSerializer serializer,
@@ -1210,6 +1174,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_box_autoadd_f_64(self.speedBps, serializer);
     sse_encode_opt_box_autoadd_u_64(self.etaSeconds, serializer);
     sse_encode_opt_String(self.phase, serializer);
+    sse_encode_opt_String(self.outputPath, serializer);
   }
 
   @protected
