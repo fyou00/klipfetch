@@ -30,11 +30,11 @@ KlipFetch uses a **Dual-Engine Hybrid Architecture** that combines native Rust s
 ```mermaid
 flowchart TD
     subgraph UI["Flutter UI & Android OS Shell (Dart + Kotlin)"]
-        Screens["UI Screens (Home, Queue, Auth Browser, Settings)"]
-        Share["Android Share Sheet (receive_sharing_intent)"]
-        WebView["InAppWebView (Login, HttpOnly CookieManager)"]
+        Screens["UI Screens (Home, Downloads, AuthBrowser, Settings)"]
+        Share["Android Share Sheet (ACTION_SEND / AndroidPlatformHandler.kt)"]
+        WebView["AuthWebViewActivity.kt (WebView + HttpOnly CookieManager)"]
         FgService["DownloadForegroundService.kt (Notifications + WakeLock)"]
-        MediaStore["Scoped Storage / MediaStore Exporter"]
+        MediaStore["Scoped Storage / MediaStoreExporter.kt"]
     end
 
     subgraph RustFFI["Engine A: Rust Core via flutter_rust_bridge v2.13.0"]
@@ -87,9 +87,9 @@ KlipFetch resolves this cleanly:
 4. **Resilient Background Downloads**: Long transfers run inside `DownloadForegroundService.kt` with a persistent progress notification, pause/cancel actions, partial wakelock, and automatic export to `Downloads/KlipFetch/{TikTok,Instagram,YouTube}/` via Android MediaStore.
 
 ### 3. Cookie Authentication Without a Browser Extension
-On desktop, LibreGet captures logged-in sessions via a Chrome/Firefox extension bridge over `127.0.0.1`. On Android, KlipFetch replaces this with an embedded **`flutter_inappwebview`** authentication browser:
-- Users sign in to Instagram, TikTok, or YouTube directly inside the app's WebView.
-- `CookieManager.instance().getCookies()` reads session cookies—including **`HttpOnly` cookies** invisible to `document.cookie`—and stores them locally in Netscape `cookies.txt` format shared between `libreget-core` and `yt-dlp`.
+On desktop, LibreGet captures logged-in sessions via a Chrome/Firefox extension bridge over `127.0.0.1`. On Android, KlipFetch replaces this with a native Android `WebView` + `CookieManager` flow ([`AuthWebViewActivity.kt`](android/app/src/main/kotlin/io/github/fyou00/klipfetch/AuthWebViewActivity.kt) + [`AuthBrowserScreen`](lib/features/auth/auth_browser_screen.dart)):
+- Users sign in to Instagram, TikTok, or YouTube inside the app's clean mobile-UA WebView (`User-Agent` free of `; wv` for Google OAuth compatibility).
+- `CookieManager.getInstance().getCookie()` captures **`HttpOnly`** and session cookies directly from Android's cookie store and serializes them locally into Netscape `cookies.txt` inside app-private storage (without logging raw token values), shared seamlessly between `libreget-core` and `yt-dlp`.
 
 ---
 
@@ -97,49 +97,67 @@ On desktop, LibreGet captures logged-in sessions via a Chrome/Firefox extension 
 
 | Layer | Technology / Package | Target Version | Role in KlipFetch |
 |---|---|---|---|
-| **UI Framework** | Flutter & Dart | Flutter `3.47.9` / Dart `3.13.7` | Android Material 3 UI, reactive queue cards, settings |
-| **State & Routing** | `flutter_riverpod`, `go_router` | Latest stable | Planned app state management and declarative navigation |
-| **Rust ↔ Dart FFI** | `flutter_rust_bridge` + `cargo-ndk` | `2.13.0` | Zero-boilerplate async bindings & `StreamSink` progress events |
-| **Native Core** | `libreget-core` (`OpenSelena/libreget`) | `--features mobile` | Native TikTok/Instagram extractors, URL router, HLS/direct downloader, `rusqlite` queue/WAL |
-| **Android Bridge** | Kotlin + Android Gradle Plugin | Kotlin `2.4.0` / AGP `9.1.0` | `MethodChannel` / `EventChannel`, Foreground Service, MediaStore |
-| **YouTube & Fallback Engine** | `io.github.junkfood02.youtubedl-android` | `0.18.1` | Bundled Python + updatable `yt-dlp` zipapp + FFmpeg + optional `aria2c` |
-| **JS Challenge Runtime** | QuickJS-NG | Latest mobile build | Lightweight (~1–2 MB) JS evaluator for YouTube `nsig` transforms |
-| **Share & Auth WebView** | `receive_sharing_intent`, `flutter_inappwebview` | `1.8.1` / `6.x` | Receive Android Share Sheet URLs & harvest `HttpOnly` session cookies |
-| **CI/CD** | GitHub Actions (`ubuntu-latest`) | Temurin JDK `17` | Automated `flutter analyze`, `flutter test`, and Android APK builds |
+| **UI Framework** | Flutter & Dart | Flutter `3.47.9` / Dart `3.13.7` | Android Material 3 UI (`Home`, `Downloads`, `Accounts & Cookies`, `Settings`) |
+| **State & Navigation** | `flutter_riverpod` | `2.6.1` | Reactive `Notifier` queue/settings state, Share Sheet handling, Material 3 `NavigationBar` |
+| **Rust ↔ Dart FFI** | `flutter_rust_bridge` + `cargo-ndk` | `2.13.0` | Async FFI bindings & `StreamSink` progress telemetry (`arm64-v8a`, `armeabi-v7a`) |
+| **Native Core** | `libreget-core` (`OpenSelena/libreget`) | `--features mobile` | Native TikTok/Instagram extractors, `rustls` TLS, URL router, `rusqlite` SQLite WAL queue |
+| **Android Bridge** | Kotlin + Android Gradle Plugin | Kotlin `2.4.0` / AGP `9.1.0` | Method/Event channels, `DownloadForegroundService.kt`, `MediaStoreExporter.kt`, `AuthWebViewActivity.kt` |
+| **YouTube & Fallback Engine** | `io.github.junkfood02.youtubedl-android` | `0.18.1` | Bundled Python + updatable `yt-dlp` zipapp + FFmpeg + `aria2c` |
+| **JS Challenge Runtime** | QuickJS-NG | Mobile JNI hook | Lightweight JS evaluator (`libquickjs.so`) for YouTube `nsig` transforms |
+| **CI/CD & Releases** | GitHub Actions (`ubuntu-latest`) | Temurin JDK `17` | Dependency audits, Rust/Flutter tests, debug CI APKs, signed `--split-per-abi` Releases + SHA-256 |
 
 ---
 
-## Platform Support Matrix (Target Scope)
+## Platform Support Matrix
 
-| Platform | Planned Capabilities | Primary Engine | Fallback Engine | Auth Needed? |
+| Platform | Implemented Capabilities | Primary Engine | Fallback Engine | Auth Needed? |
 |---|---|---|---|---|
-| **TikTok** | Single videos (watermark-free), photo slideshows, audio extraction (M4A/MP3) | `libreget-core` (Rust) | `youtubedl-android` (`yt-dlp`) | Optional (private/age-gated) |
-| **Instagram** | Posts, Reels, Carousels, Stories (no seen receipt), Highlights, Reel audio | `libreget-core` (Rust) | `youtubedl-android` (`yt-dlp`) | Required for Stories / private accounts (via InAppWebView) |
-| **YouTube** | Videos (up to 4K/2160p & 2K/1440p), Shorts, Playlists, Audio-only (MP3/M4A/Opus), Subtitles (SRT/VTT), SponsorBlock | `youtubedl-android` + QuickJS-NG + FFmpeg | — | Optional (members-only / age-restricted / anti-bot) |
+| **TikTok** | Single videos, photo slideshows (incl. non-`.jpeg` & optional background audio toggle), audio-only extraction | `libreget-core` (Rust) | `youtubedl-android` (`yt-dlp`) | Optional (region/age-gated) |
+| **Instagram** | Posts, Reels, multi-item Carousels (350 ms pacing & batch export), Stories & Highlights, Reel audio | `libreget-core` (Rust) | `youtubedl-android` (`yt-dlp`) | Required for Stories / private accounts |
+| **YouTube** | Videos (4K/2160p, 2K/1440p, 1080p, 720p, 480p), Shorts, selective Playlist picker, MP4/MKV muxing, Audio-only (M4A/MP3/Opus), Subtitles (SRT/VTT), SponsorBlock | `youtubedl-android` + QuickJS-NG + FFmpeg | — | Optional (members-only / age-restricted / anti-bot) |
 
 ---
 
 ## Project Structure
 
-> **Current Repository State**: Phase 0 foundation is initialized (Android-only Flutter scaffold, GPL-3.0 license, documentation, and Android CI). Planned modules below are tracked in [PLAN.md](PLAN.md).
+> **Current Repository State**: Phases 0–4 are implemented and verified in CI (awaiting user-supplied release keystore secrets and physical Android 10–15 device QA verification — see [`PLAN.md`](PLAN.md) and [`docs/RELEASE_AND_QA.md`](docs/RELEASE_AND_QA.md)).
 
 ```text
 klipfetch/
 ├── .github/workflows/
-│   └── ci.yml                 # Automated Flutter analyze, test & Android debug APK build
-├── android/                   # Android Gradle project (Kotlin, AGP 9.1.0, Java 17)
-│   └── app/src/main/kotlin/io/github/fyou00/klipfetch/
-│       └── MainActivity.kt    # (Planned) YtDlpChannelHandler & DownloadForegroundService
-├── lib/                       # Flutter Dart application
-│   └── main.dart              # (Planned) features/{home,downloads,auth_browser,settings}, rust/ FFI bindings
-├── test/                      # Flutter unit & widget tests
-├── rust/                      # (Planned Phase 1) flutter_rust_bridge v2 FFI crate
-├── third_party/libreget/      # (Planned Phase 0) Upstream OpenSelena/libreget core submodule/fork
-├── AGENTS.md                  # Guardrails and workflow rules for AI agents & contributors
-├── CHANGELOG.md               # Versioned release & development history
-├── LICENSE                    # GNU General Public License v3.0
-├── PLAN.md                    # Detailed 5-phase Android implementation roadmap
-└── README.md                  # Project overview, architecture & tech stack
+│   ├── ci.yml                     # Audit, Rust tests, arm64 NDK FFI, Flutter checks, debug APK artifact
+│   └── release.yml                # Tagged/dry-run dual-ABI (--split-per-abi) release APKs + SHA256SUMS.txt
+├── android/app/
+│   ├── build.gradle.kts           # AGP 9.1.0, W^X jniLibs, release signing & R8, split-per-abi config
+│   ├── proguard-rules.pro         # R8 keep rules for KlipFetch, Flutter, youtubedl-android, JNA
+│   └── src/main/kotlin/io/github/fyou00/klipfetch/
+│       ├── MainActivity.kt
+│       ├── AndroidPlatformHandler.kt
+│       ├── AuthWebViewActivity.kt
+│       ├── DownloadForegroundService.kt
+│       ├── MediaStoreExporter.kt
+│       └── YtDlpChannelHandler.kt
+├── docs/
+│   └── RELEASE_AND_QA.md          # Keystore setup, Obtainium/F-Droid guide, Android 10–15 QA matrix
+├── fastlane/metadata/android/     # Localized en-US and id metadata & changelogs (Obtainium / F-Droid)
+├── lib/
+│   ├── app/klipfetch_app.dart     # Material 3 shell, Share Sheet listener, bootstrap
+│   ├── features/                  # auth/, downloads/, home/, settings/
+│   ├── models/                    # AppSettings, AuthModels, DownloadModels, MediaPlatform, Probe, QueueItem
+│   ├── services/                  # AndroidPlatform, Cookie, NetscapeCodec, Queue, RustCore, Settings, Router, YtDlp
+│   ├── src/rust/                  # Generated flutter_rust_bridge v2.13.0 bindings
+│   ├── state/providers.dart       # Riverpod Notifier controllers
+│   ├── theme/app_theme.dart
+│   └── widgets/platform_badge.dart
+├── rust/                          # klipfetch_ffi cdylib crate (SQLite WAL queue + libreget-core bridge)
+├── scripts/audit_dependencies.sh  # Automated GPL-3.0, non-GMS, Android-only & pure-Rust TLS check
+├── third_party/libreget-core/     # Vendored mobile-pruned libreget-core (TikTok + Instagram only)
+├── test/                          # Flutter unit & widget tests
+├── AGENTS.md
+├── CHANGELOG.md
+├── LICENSE                        # GNU General Public License v3.0
+├── PLAN.md
+└── README.md
 ```
 
 ---
@@ -159,18 +177,22 @@ klipfetch/
 
 ### Common Verification Commands
 ```bash
+# GPL-3.0, non-GMS, and Android-only audit
+./scripts/audit_dependencies.sh
+
 # Flutter static checks and tests
 flutter pub get
 flutter analyze
 flutter test
 
+# Rust mobile core checks & FFI cross-compilation
+cargo test --manifest-path third_party/libreget-core/Cargo.toml --no-default-features --features mobile
+cargo test --manifest-path rust/Cargo.toml
+cd rust && cargo ndk -t arm64-v8a -t armeabi-v7a --platform 24 -o ../android/app/src/main/jniLibs build --release
+
 # Android APK builds (requires JDK 17 + Android SDK)
 flutter build apk --debug --target-platform android-arm64
-flutter build apk --release --split-per-abi
-
-# Rust mobile core checks (available once Phase 0/1 Rust workspace is added)
-cargo check --manifest-path third_party/libreget/src-tauri/libreget-core/Cargo.toml --no-default-features --features mobile
-cargo ndk -t arm64-v8a build --manifest-path rust/Cargo.toml --release
+flutter build apk --release --split-per-abi --target-platform android-arm,android-arm64
 ```
 
 ---
@@ -178,9 +200,9 @@ cargo ndk -t arm64-v8a build --manifest-path rust/Cargo.toml --release
 ## Distribution Policy
 
 Because Google Play Store restricts apps capable of downloading YouTube videos and authenticated social media streams, **KlipFetch will not be published on Google Play**. Releases are distributed via:
-1. **GitHub Releases** — signed `--split-per-abi` APKs (`arm64-v8a`, `armeabi-v7a`) built transparently via GitHub Actions.
-2. **Obtainium** — direct release tracking from this GitHub repository.
-3. **F-Droid / IzzyOnDroid** — reproducible open-source distribution compatible with GPL-3.0.
+1. **GitHub Releases** — signed `--split-per-abi` APKs (`klipfetch-v<ver>-arm64-v8a.apk`, `klipfetch-v<ver>-armeabi-v7a.apk`) + `SHA256SUMS.txt` built transparently via [`.github/workflows/release.yml`](.github/workflows/release.yml).
+2. **Obtainium** — direct release tracking from this GitHub repository (setup details in [`docs/RELEASE_AND_QA.md`](docs/RELEASE_AND_QA.md)).
+3. **F-Droid / IzzyOnDroid** — reproducible GPL-3.0 metadata under [`fastlane/metadata/android/`](fastlane/metadata/android/), verified clean of Google Play Services and proprietary trackers.
 
 ---
 

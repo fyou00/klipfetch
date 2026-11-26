@@ -25,9 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Phase 3 platform refinements: Instagram Story/Highlight `yt-dlp` cookie routing, audio fallback, and 350 ms carousel pacing; TikTok slideshow non-`.jpeg` fallback and background audio toggle; YouTube 4K/2K/1080p/720p/480p upper bounds, MP4/MKV container selector, selective Playlist item picker, SponsorBlock removal, and SRT/VTT subtitle download/embedding.
 - Batch `MediaStoreExporter.exportDirectory` support for multi-file carousels, slideshows, and subtitle sidecars plus Phase 3 unit and widget tests (`test/netscape_cookie_codec_test.dart`, `test/ytdlp_parser_test.dart`, expanded router/queue/widget tests).
 - Uploaded `klipfetch-android-arm64-debug` (`app-debug.apk`, 14-day retention) as a downloadable artifact in `.github/workflows/ci.yml`.
+- Phase 4 release engineering (`android/app/proguard-rules.pro`, release signing & `split-per-abi` configuration in `android/app/build.gradle.kts`, aligned version `0.1.0+1`).
+- Automated `.github/workflows/release.yml` building dual-ABI (`arm64-v8a` + `armeabi-v7a`) split release APKs with `cargo-ndk`, verifying `libklipfetch_ffi.so`, generating `SHA256SUMS.txt`, and publishing tagged GitHub Releases (`v*.*.*` + `workflow_dispatch` dry-runs).
+- Obtainium / F-Droid Fastlane metadata (`fastlane/metadata/android/{en-US,id}/`), automated dependency audit (`scripts/audit_dependencies.sh`), and `docs/RELEASE_AND_QA.md` (keystore guide, Obtainium setup, Android 10–15 QA matrix).
 
 ### Changed
-- Pinned Flutter SDK `3.47.9` and upgraded `.github/workflows/ci.yml` to run `libreget-core` and `klipfetch_ffi` Rust tests, cross-compile `libklipfetch_ffi.so` (`arm64-v8a`) via `cargo-ndk`, run Flutter checks, and verify the shared library inside the built debug APK.
+- Pinned Flutter SDK `3.47.9` and upgraded `.github/workflows/ci.yml` to run `./scripts/audit_dependencies.sh`, `libreget-core` and `klipfetch_ffi` Rust tests, cross-compile `libklipfetch_ffi.so` (`arm64-v8a`) via `cargo-ndk`, run Flutter checks, and verify the shared library inside the built debug APK (using `actions/setup-java@v5`).
+- Refreshed `README.md` architecture diagram, tech stack, repository tree, and distribution documentation to reflect completed Phase 0–4 modules.
 - Updated `YtDlpService` to return resolved `outputPath` from `YtDlpChannelHandler.kt` and replaced the starter template in `lib/main.dart` with `KlipFetchApp`.
 - Updated `UrlRouterService`, `YtDlpChannelHandler.kt`, and `DownloadQueueNotifier` to propagate shared `cookies.txt`, muxing phase telemetry, and multi-file staging directory exports.
 

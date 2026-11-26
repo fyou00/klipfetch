@@ -214,6 +214,13 @@ Handle logged-in content, stories, adaptive 4K muxing, subtitles, and reliabilit
 
 ## Phase 4 — Release Engineering & Distribution
 
+### Status
+- [x] **4.1 Release Signing, R8 & Split-Per-ABI Config**: Added `android/app/proguard-rules.pro`, configured `android/app/build.gradle.kts` (`split-per-abi` `ndk.abiFilters` guard, `android/key.properties` / `KLIPFETCH_KEYSTORE_*` signing resolution with debug fallback, R8 minification/resource shrinking), and aligned app version to `0.1.0+1`.
+- [x] **4.2 GitHub Actions Release Workflow (`.github/workflows/release.yml`)**: Automated `v*.*.*` tag triggers + `workflow_dispatch` dry-runs building both `arm64-v8a` & `armeabi-v7a` Rust FFI libraries via `cargo-ndk`, verifying `libklipfetch_ffi.so` inside split release APKs, generating/checking `SHA256SUMS.txt`, and publishing GitHub Releases when signing secrets are present.
+- [x] **4.3 Obtainium & F-Droid / IzzyOnDroid Preparation**: Added localized Fastlane metadata (`fastlane/metadata/android/en-US/` and `id/`), created `scripts/audit_dependencies.sh` (GPL-3.0, Android-only, non-GMS, pure-Rust TLS, Fastlane limits, secret hygiene), wired it into `.github/workflows/ci.yml`, and documented keystore/distribution/QA workflows in `docs/RELEASE_AND_QA.md`.
+- [ ] **Release Signing Secrets & Live `v0.1.0` Tag Publish**: User-owned release keystore secrets (`KEYSTORE_BASE64`, `KEY_ALIAS`, `KEYSTORE_PASSWORD`, `KEY_PASSWORD`) + `git tag v0.1.0` on GitHub.
+- [ ] **Physical Device QA Matrix (Android 10–15)**: Manual E2E verification across Android 10 (API 29), Android 12 (API 31), Android 14 (API 34), and Android 15 (API 35) per `docs/RELEASE_AND_QA.md`.
+
 ### Goals
 Automate reproducible, signed APK releases for non-Play Store distribution.
 
