@@ -78,3 +78,11 @@ jobs:
 
       - name: Verify Rust FFI shared library in APK
         run: unzip -l build/app/outputs/flutter-apk/app-debug.apk | grep libklipfetch_ffi.so
+
+      - name: Upload debug APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: klipfetch-android-arm64-debug
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 14
+          if-no-files-found: error
