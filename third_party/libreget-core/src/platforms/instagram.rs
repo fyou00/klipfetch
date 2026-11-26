@@ -646,7 +646,7 @@ impl PlatformDownloader for InstagramDownloader {
     async fn get_media_info(&self, url: &str) -> anyhow::Result<MediaInfo> {
         if Self::is_story_url(url) {
             return Err(anyhow!(
-                "Instagram Stories are not supported. Only public posts, reels and carousels."
+                "FALLBACK_YTDLP: Instagram Stories and Highlights require authenticated yt-dlp extraction"
             ));
         }
 
@@ -771,6 +771,12 @@ impl PlatformDownloader for InstagramDownloader {
         opts: &DownloadOptions,
         progress: mpsc::Sender<ProgressUpdate>,
     ) -> anyhow::Result<DownloadResult> {
+        if opts.download_mode.as_deref() == Some("audio") {
+            return Err(anyhow!(
+                "FALLBACK_YTDLP: audio extraction requires yt-dlp with FFmpeg"
+            ));
+        }
+
         if info.available_qualities.iter().any(|q| q.format == "ytdlp") {
             let target_url = info
                 .available_qualities
@@ -835,6 +841,13 @@ impl PlatformDownloader for InstagramDownloader {
         let mut last_path = opts.output_dir.clone();
 
         for (i, quality) in info.available_qualities.iter().enumerate() {
+            if i > 0 {
+                tokio::select! {
+                    _ = opts.cancel_token.cancelled() => return Err(anyhow!("Download cancelled")),
+                    _ = tokio::time::sleep(std::time::Duration::from_millis(350)) => {}
+                }
+            }
+
             let filename = format!(
                 "{}_{}.{}",
                 sanitize_filename::sanitize(&info.title),
@@ -1041,5 +1054,21 @@ mod tests {
     fn is_html_block_error_rejects_unrelated_error() {
         let err = anyhow!("HTTP 404 downloading url");
         assert!(!InstagramDownloader::is_html_block_error(&err));
+    }
+
+    #[test]
+    fn is_story_url_detects_stories_and_highlights() {
+        assert!(InstagramDownloader::is_story_url(
+            "https://www.instagram.com/stories/alice/1234567890/"
+        ));
+        assert!(InstagramDownloader::is_story_url(
+            "https://instagram.com/stories/highlights/178901234567/"
+        ));
+        assert!(!InstagramDownloader::is_story_url(
+            "https://www.instagram.com/p/ABC123/"
+        ));
+        assert!(!InstagramDownloader::is_story_url(
+            "https://www.instagram.com/reel/Dbi_MeVOphM/"
+        ));
     }
 }

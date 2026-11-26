@@ -7,9 +7,9 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `cancellation_map`, `format_media_type`, `sanitize_domain`
+// These functions are ignored because they are not marked as `pub`: `cancellation_map`, `clear_domain_cookies_in`, `filter_out_domain_lines`, `format_media_type`, `get_cookie_domain_status_in`, `get_shared_cookies_path_in`, `host_belongs_to_domain_group`, `host_matches_domain`, `is_auth_cookie_for_domain`, `parse_netscape_cookie_line`, `related_cookie_domains`, `sanitize_domain`, `save_netscape_cookies_in`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `ActiveTaskGuard`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 Future<void> initCore({required String dataDir}) =>
     RustLib.instance.api.crateApiCoreInitCore(dataDir: dataDir);
@@ -47,6 +47,47 @@ Future<String> saveNetscapeCookies({
 
 Future<void> clearDomainCookies({required String domain}) =>
     RustLib.instance.api.crateApiCoreClearDomainCookies(domain: domain);
+
+Future<CookieDomainStatus> getCookieDomainStatus({required String domain}) =>
+    RustLib.instance.api.crateApiCoreGetCookieDomainStatus(domain: domain);
+
+Future<String?> getSharedCookiesPath() =>
+    RustLib.instance.api.crateApiCoreGetSharedCookiesPath();
+
+class CookieDomainStatus {
+  final String domain;
+  final bool hasCookies;
+  final int cookieCount;
+  final bool hasAuthCookie;
+  final PlatformInt64? updatedAtMs;
+
+  const CookieDomainStatus({
+    required this.domain,
+    required this.hasCookies,
+    required this.cookieCount,
+    required this.hasAuthCookie,
+    this.updatedAtMs,
+  });
+
+  @override
+  int get hashCode =>
+      domain.hashCode ^
+      hasCookies.hashCode ^
+      cookieCount.hashCode ^
+      hasAuthCookie.hashCode ^
+      updatedAtMs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CookieDomainStatus &&
+          runtimeType == other.runtimeType &&
+          domain == other.domain &&
+          hasCookies == other.hasCookies &&
+          cookieCount == other.cookieCount &&
+          hasAuthCookie == other.hasAuthCookie &&
+          updatedAtMs == other.updatedAtMs;
+}
 
 class NativeMediaInfo {
   final String title;

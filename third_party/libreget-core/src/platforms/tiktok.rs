@@ -283,6 +283,15 @@ impl TikTokDownloader {
                     .iter()
                     .filter_map(|u| u.as_str())
                     .find(|u| u.contains(".jpeg"))
+                    .or_else(|| {
+                        url_list
+                            .iter()
+                            .filter_map(|u| u.as_str())
+                            .find(|u| {
+                                !u.is_empty()
+                                    && (u.starts_with("http://") || u.starts_with("https://"))
+                            })
+                    })
                     .map(|u| u.to_string())
             })
             .collect();
@@ -383,7 +392,7 @@ impl PlatformDownloader for TikTokDownloader {
                 MediaType::Carousel
             };
 
-            let qualities: Vec<VideoQuality> = image_urls
+            let mut qualities: Vec<VideoQuality> = image_urls
                 .iter()
                 .enumerate()
                 .map(|(i, u)| VideoQuality {
@@ -394,6 +403,16 @@ impl PlatformDownloader for TikTokDownloader {
                     format: "jpg".to_string(),
                 })
                 .collect();
+
+            if let Some(music_url) = Self::extract_music_url(&detail) {
+                qualities.push(VideoQuality {
+                    label: "slideshow_audio".to_string(),
+                    width: 0,
+                    height: 0,
+                    url: music_url,
+                    format: "mp3".to_string(),
+                });
+            }
 
             return Ok(MediaInfo {
                 title,
@@ -472,6 +491,12 @@ impl PlatformDownloader for TikTokDownloader {
 
         match info.media_type {
             MediaType::Video => {
+                if opts.download_mode.as_deref() == Some("audio") {
+                    return Err(anyhow!(
+                        "FALLBACK_YTDLP: audio extraction requires yt-dlp with FFmpeg"
+                    ));
+                }
+
                 let quality = info
                     .available_qualities
                     .first()
@@ -516,11 +541,53 @@ impl PlatformDownloader for TikTokDownloader {
                 ))
             }
             MediaType::Photo | MediaType::Carousel => {
+                let photo_qualities: Vec<&VideoQuality> = info
+                    .available_qualities
+                    .iter()
+                    .filter(|q| q.label != "slideshow_audio")
+                    .collect();
+                let audio_quality = info
+                    .available_qualities
+                    .iter()
+                    .find(|q| q.label == "slideshow_audio");
+
+                if opts.download_mode.as_deref() == Some("audio") {
+                    if let Some(audio) = audio_quality {
+                        let filename = format!("{}.mp3", sanitize_filename::sanitize(&info.title));
+                        let output = opts.output_dir.join(&filename);
+                        let bytes = direct_downloader::download_direct_with_headers(
+                            &self.client,
+                            &audio.url,
+                            &output,
+                            progress,
+                            Some(headers),
+                            Some(&opts.cancel_token),
+                        )
+                        .await?;
+                        return Ok(DownloadResult {
+                            file_path: output,
+                            file_size_bytes: bytes,
+                            duration_seconds: 0.0,
+                            torrent_id: None,
+                        });
+                    }
+                    return Err(anyhow!(
+                        "FALLBACK_YTDLP: tiktok slideshow audio unavailable for direct extraction"
+                    ));
+                }
+
+                let include_audio = opts.quality.as_deref() == Some("photos_with_audio")
+                    && audio_quality.is_some();
+                let total_steps = photo_qualities.len() + usize::from(include_audio);
+                if total_steps == 0 {
+                    return Err(anyhow!("No photo URLs available in TikTok slideshow"));
+                }
+
                 let mut total_bytes = 0u64;
-                let count = info.available_qualities.len();
+                let count = photo_qualities.len();
                 let mut last_path = opts.output_dir.clone();
 
-                for (i, quality) in info.available_qualities.iter().enumerate() {
+                for (i, quality) in photo_qualities.iter().enumerate() {
                     let filename = if count == 1 {
                         format!("{}.jpg", sanitize_filename::sanitize(&info.title))
                     } else {
@@ -546,8 +613,38 @@ impl PlatformDownloader for TikTokDownloader {
                     total_bytes += bytes;
                     last_path = output;
 
-                    let percent = ((i + 1) as f64 / count as f64) * 100.0;
+                    let percent = ((i + 1) as f64 / total_steps as f64) * 100.0;
                     let _ = progress.send(ProgressUpdate::percent(percent)).await;
+                }
+
+                if include_audio {
+                    if let Some(audio) = audio_quality {
+                        let audio_filename =
+                            format!("{}_audio.mp3", sanitize_filename::sanitize(&info.title));
+                        let audio_output = opts.output_dir.join(&audio_filename);
+                        let (tx, _rx) = mpsc::channel(8);
+                        match direct_downloader::download_direct_with_headers(
+                            &self.client,
+                            &audio.url,
+                            &audio_output,
+                            tx,
+                            Some(headers),
+                            Some(&opts.cancel_token),
+                        )
+                        .await
+                        {
+                            Ok(bytes) => {
+                                total_bytes += bytes;
+                                let _ = progress.send(ProgressUpdate::percent(100.0)).await;
+                            }
+                            Err(e) => {
+                                tracing::warn!(
+                                    "[tiktok] slideshow audio download failed (photos saved): {}",
+                                    e
+                                );
+                            }
+                        }
+                    }
                 }
 
                 Ok(DownloadResult {
@@ -624,6 +721,39 @@ mod tests {
         assert_eq!(
             TikTokDownloader::extract_title(&detail, "123456", "artist"),
             "tiktok_artist_123456"
+        );
+    }
+
+    #[test]
+    fn extract_image_urls_falls_back_to_non_jpeg_urls() {
+        let detail = serde_json::json!({
+            "imagePost": {
+                "images": [
+                    {
+                        "imageURL": {
+                            "urlList": [
+                                "https://p16-sign.tiktokcdn.com/slide1.webp",
+                                "https://p19-sign.tiktokcdn.com/slide1.jpeg"
+                            ]
+                        }
+                    },
+                    {
+                        "imageURL": {
+                            "urlList": [
+                                "https://p16-sign.tiktokcdn.com/slide2.webp"
+                            ]
+                        }
+                    }
+                ]
+            }
+        });
+        let urls = TikTokDownloader::extract_image_urls(&detail).unwrap();
+        assert_eq!(
+            urls,
+            vec![
+                "https://p19-sign.tiktokcdn.com/slide1.jpeg".to_string(),
+                "https://p16-sign.tiktokcdn.com/slide2.webp".to_string(),
+            ]
         );
     }
 }
