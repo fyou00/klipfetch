@@ -23,52 +23,42 @@
 - [x] Scaffold Android-only Flutter application (`flutter create --platforms=android`)
 - [x] Configure initial GitHub Actions Android CI (`.github/workflows/ci.yml`)
 - [x] Author `README.md`, `PLAN.md`, `AGENTS.md`, and `CHANGELOG.md`
-- [ ] Local developer toolchain setup (JDK 17, Android SDK/NDK, Rust Android targets)
-- [ ] Vendor/submodule `OpenSelena/libreget` and patch `libreget-core` for `feature = "mobile"`
+- [x] Vendor and prune `OpenSelena/libreget` (`libreget-core`) into `third_party/libreget-core/` for `feature = "mobile"` (`dff2b974ec798e76a3c6d95d2e3b7273173dc674`)
+- [ ] Local developer toolchain setup on macOS host (JDK 17, Android SDK/NDK, `cargo-ndk` — currently handled automatically in GitHub Actions CI)
 
 ### Tasks
 
 #### 0.1 Local Machine Toolchain Setup (Required on Local Host Before Native Builds)
-Install the Android & Rust cross-compilation toolchain locally (currently only Flutter SDK `3.47.9`, Rust `1.100.0`, `git`, and `gh` are installed on the development host):
+Install the Android & Rust cross-compilation toolchain locally (`flutter_rust_bridge_codegen` `2.13.0` is already installed; JDK 17, Android SDK/NDK, and `cargo-ndk` are still needed if building APKs locally instead of via CI):
 1. Install **JDK 17** (Temurin 17) and configure `JAVA_HOME`.
 2. Install **Android SDK** (API 34/35, Build-Tools, Platform-Tools) and **Android NDK** (r26+ / `flutter.ndkVersion`).
-3. Install Rust Android targets and FFI tooling:
+3. Install Rust Android targets and `cargo-ndk`:
    ```bash
    rustup target add aarch64-linux-android armv7-linux-androideabi
    cargo install cargo-ndk
-   cargo install flutter_rust_bridge_codegen
    ```
 
-#### 0.2 Vendor Upstream `OpenSelena/libreget`
-Add our fork (or pinned submodule) of `OpenSelena/libreget` under `third_party/libreget/`:
-```bash
-git submodule add https://github.com/OpenSelena/libreget.git third_party/libreget
-```
-*(Or maintain a lightweight fork so mobile patches stay clean and easy to rebase against upstream.)*
-
-#### 0.3 Required Mobile Patches in `third_party/libreget/src-tauri/libreget-core`
-Audit findings from `OpenSelena/libreget` show `libreget-core/Cargo.toml` already defines `mobile = []`, but several desktop-only crates are still unconditionally compiled:
-
-1. **`src-tauri/libreget-core/Cargo.toml`**:
-   - Gate desktop-only dependencies behind `optional = true` and include them only in `desktop = [...]`:
-     - `enigo` (desktop auto-clicker & dictation)
-     - `trash` (desktop recycle bin)
-     - `open` (desktop file/URL launcher)
-     - `libloading` and `ort` (desktop dynamic PDFium / ONNX Runtime)
-   - Switch `tokio-tungstenite` from `features = ["native-tls"]` to `features = ["rustls-tls-webpki-roots"]` to avoid cross-compiling OpenSSL C libraries for Android.
-2. **`src-tauri/libreget-core/src/core/paths.rs`**:
-   - Add a `OnceLock<PathBuf>` mobile storage override (`pub fn set_mobile_data_dir(path: PathBuf)`) compiled under `#[cfg(feature = "mobile")]`, initialized at app startup from Flutter's `getApplicationSupportDirectory()`.
-3. **`src-tauri/libreget-core/src/core/tools/mod.rs` & `src/platforms/mod.rs`**:
-   - Gate desktop-only tool modules (`autoclick`, `dictation`, `win_*`, `sysclean`, `startup`, `uninstall`, `hosts_block`, `screen_record`, `kdeconnect`, `spicetify`) under `#[cfg(feature = "desktop")]`.
-   - Keep only required mobile modules active: `instagram`, `tiktok`, URL parser/detector, `cookie_parser`, `direct_downloader`, `hls_downloader`, `http_client`, and queue/database helpers.
+#### 0.2 Vendored `libreget-core` Mobile Subset (`third_party/libreget-core/`)
+Pruned upstream `src-tauri/libreget-core` (from `OpenSelena/libreget` commit `dff2b974ec798e76a3c6d95d2e3b7273173dc674`, documented in `third_party/libreget-core/UPSTREAM.md`) to a lean pure-Rust mobile crate:
+- Removed desktop-only crates (`enigo`, `trash`, `open`, `libloading`, `ort`, `lopdf`, `xz2`, `image`, `tokio-tungstenite`/`native-tls`) and subprocess modules (`ytdlp.rs`, `ffmpeg.rs`, `dependencies.rs`, `process.rs`, `core/tools/*`).
+- Kept `models/*`, pure-Rust HTTP/HLS/direct download & cookie utilities, `paths.rs` (`set_mobile_data_dir`), `InstagramDownloader`, and `TikTokDownloader`.
+- Replaced subprocess `yt-dlp` fallbacks with `FALLBACK_YTDLP` errors so Dart's `UrlRouterService` hands off to Android `youtubedl-android`.
 
 ### Phase 0 Verification & Definition of Done
-- `cargo check --manifest-path third_party/libreget/src-tauri/libreget-core/Cargo.toml --no-default-features --features mobile --target aarch64-linux-android` exits `0`.
-- `cargo test --manifest-path third_party/libreget/src-tauri/libreget-core/Cargo.toml --no-default-features --features mobile` passes without referencing `enigo`, `trash`, `native-tls`, or `tauri`.
+- [x] `cargo check --manifest-path third_party/libreget-core/Cargo.toml --no-default-features --features mobile` exits `0`.
+- [x] `cargo test --manifest-path third_party/libreget-core/Cargo.toml --no-default-features --features mobile` passes (155 tests) without referencing `enigo`, `trash`, `native-tls`, or `tauri`.
 
 ---
 
 ## Phase 1 — Dual-Engine Core Bridge (Rust FFI + Kotlin `youtubedl-android`)
+
+### Status
+- [x] `rust/` FFI crate (`klipfetch_ffi`) & `flutter_rust_bridge` `2.13.0` bindings (`lib/src/rust/`)
+- [x] Android `youtubedl-android:0.18.1` Gradle, W^X (`useLegacyPackaging = true`, `extractNativeLibs="true"`), and `YtDlpChannelHandler.kt`
+- [x] Dart Dual-Engine services (`RustCoreService`, `YtDlpService`), `UrlRouterService`, and unit tests (`test/url_router_service_test.dart`)
+- [x] GitHub Actions CI pipeline configured (`cargo test`, `cargo-ndk` arm64 build, `flutter analyze`, `flutter test`, `flutter build apk`)
+- [ ] Bundle prebuilt QuickJS-NG (`libquickjs.so`) in `jniLibs/<abi>/` (hooked in `YtDlpChannelHandler.kt` when present)
+- [ ] Physical device / emulator E2E metadata extraction smoke test across YouTube, TikTok, and Instagram
 
 ### Goals
 Connect both download engines cleanly to Dart so KlipFetch can probe metadata and execute downloads for TikTok, Instagram, and YouTube.
@@ -76,14 +66,16 @@ Connect both download engines cleanly to Dart so KlipFetch can probe metadata an
 ### Tasks
 
 #### 1.1 Rust FFI Wrapper Crate (`rust/`)
-Create `rust/Cargo.toml` (`crate-type = ["cdylib"]`) depending on `libreget-core` (`default-features = false, features = ["mobile"]`), `flutter_rust_bridge = "2.13"`, `rusqlite` (`bundled`), `tokio`, `serde`, and `anyhow`.
+Created `rust/Cargo.toml` (`crate-type = ["cdylib", "rlib"]`) depending on `libreget-core` (`default-features = false, features = ["mobile"]`), `flutter_rust_bridge = "=2.13.0"`, `rusqlite` (`bundled`), `tokio`, `tokio-util`, `serde`, and `anyhow`.
 
-Expose a clean FFI API in `rust/src/api/`:
-- `init_core(data_dir: String, cache_dir: String) -> Result<()>`
-- `probe_url(url: String) -> Result<MediaProbeResult>` (detects platform `TikTok | Instagram | YouTube | Unsupported` + extracts metadata/formats for TikTok & Instagram)
-- `download_native(request: NativeDownloadRequest, progress_sink: StreamSink<DownloadProgress>) -> Result<String>`
-- `cookies_upsert_netscape(domain: String, netscape_content: String) -> Result<()>`
-- `queue_enqueue(...)`, `queue_list()`, `queue_pause(id)`, `queue_resume(id)`, `queue_cancel(id)`
+Exposed FFI APIs in `rust/src/api/{core.rs,queue.rs}`:
+- `init_core(data_dir: String) -> Result<()>`
+- `detect_platform(url: String) -> SupportedPlatform` (`TikTok | Instagram | YouTube | Unsupported`)
+- `probe_native_media(url: String) -> Result<NativeMediaInfo>`
+- `download_native_media(task_id: String, url: String, output_dir: String, quality: Option<String>, audio_only: bool, sink: StreamSink<NativeProgressEvent>) -> Result<()>`
+- `cancel_native_download(task_id: String) -> bool`
+- `save_netscape_cookies(domain: String, netscape_content: String) -> Result<String>` & `clear_domain_cookies(domain: String) -> Result<()>`
+- `enqueue_task(...)`, `list_tasks()`, `update_task_status(...)`, `delete_task(id)` (SQLite WAL)
 
 Generate Dart bindings with:
 ```bash
