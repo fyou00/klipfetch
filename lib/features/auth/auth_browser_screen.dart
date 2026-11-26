@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/auth_models.dart';
 import '../../models/media_platform.dart';
 import '../../state/providers.dart';
+import '../../theme/app_theme.dart';
 import '../../widgets/platform_badge.dart';
 
 class AuthBrowserScreen extends ConsumerStatefulWidget {
@@ -274,14 +275,19 @@ class _PlatformAuthCard extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
 
-    final (statusLabel, statusColor) = switch ((
+    final (statusLabel, statusTone) = switch ((
       status.hasCookies,
       status.hasAuthCookie,
     )) {
-      (true, true) => ('Connected', const Color(0xFF3FB950)),
-      (true, false) => ('Incomplete', const Color(0xFFF59E0B)),
-      _ => ('Not signed in', scheme.onSurfaceVariant),
+      (true, true) => ('Connected', KlipFetchTheme.successTone),
+      (true, false) => ('Incomplete', KlipFetchTheme.warningTone),
+      _ => ('Not signed in', KlipFetchTheme.neutralTone),
     };
+    final resultTone = testResult == null
+        ? null
+        : (testResult!.isValid
+            ? KlipFetchTheme.successTone
+            : KlipFetchTheme.errorTone);
 
     return Card(
       key: Key('auth_card_${config.platform.name}'),
@@ -307,16 +313,15 @@ class _PlatformAuthCard extends StatelessWidget {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.14),
+                    color: statusTone.fill,
                     borderRadius: BorderRadius.circular(999),
-                    border: Border.all(
-                      color: statusColor.withValues(alpha: 0.4),
-                    ),
+                    border: Border.all(color: statusTone.border),
                   ),
                   child: Text(
                     statusLabel,
                     style: theme.textTheme.labelSmall?.copyWith(
-                      color: statusColor,
+                      fontSize: 12,
+                      color: statusTone.ink,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -332,21 +337,21 @@ class _PlatformAuthCard extends StatelessWidget {
                 color: scheme.onSurfaceVariant,
               ),
             ),
-            if (testResult != null) ...[
+            if (testResult != null && resultTone != null) ...[
               const SizedBox(height: 8),
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: (testResult!.isValid
-                          ? const Color(0xFF3FB950)
-                          : scheme.error)
-                      .withValues(alpha: 0.12),
+                  color: resultTone.fill,
                   borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: resultTone.border),
                 ),
                 child: Text(
                   testResult!.message,
-                  style: theme.textTheme.bodySmall,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurface,
+                  ),
                 ),
               ),
             ],

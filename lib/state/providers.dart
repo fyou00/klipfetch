@@ -953,7 +953,7 @@ class DownloadQueueNotifier extends Notifier<List<QueueItem>> {
                 title: item.title,
                 progress: pct,
                 activeCount: activeCount,
-                statusText: '${item.phase.label} · $pct%',
+                statusText: '${item.phase.label} ($pct%)',
               ),
         );
       }
@@ -987,7 +987,7 @@ class DownloadQueueNotifier extends Notifier<List<QueueItem>> {
         title: first.title,
         progress: first.progress.round(),
         activeCount: activeItems.length,
-        statusText: '${first.phase.label} · ${first.progress.round()}%',
+        statusText: '${first.phase.label} (${first.progress.round()}%)',
       );
     }
   }

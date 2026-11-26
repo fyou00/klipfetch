@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/app_settings.dart';
 import '../../state/providers.dart';
+import '../../theme/app_theme.dart';
 import '../auth/auth_browser_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -94,19 +95,44 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           Card(
             child: Padding(
               padding: const EdgeInsets.all(14),
-              child: SegmentedButton<AppThemeMode>(
-                segments: AppThemeMode.values
-                    .map(
-                      (mode) => ButtonSegment<AppThemeMode>(
-                        value: mode,
-                        label: Text(mode.label),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SegmentedButton<AppThemeMode>(
+                    segments: AppThemeMode.values
+                        .map(
+                          (mode) => ButtonSegment<AppThemeMode>(
+                            value: mode,
+                            label: Text(mode.label),
+                          ),
+                        )
+                        .toList(),
+                    selected: const {AppThemeMode.light},
+                    onSelectionChanged: (_) {
+                      // Intentionally non-functional: KlipFetch runs in Light Mode only.
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.lock_outline_rounded,
+                        size: 15,
+                        color: scheme.onSurfaceVariant,
                       ),
-                    )
-                    .toList(),
-                selected: const {AppThemeMode.light},
-                onSelectionChanged: (_) {
-                  // Intentionally non-functional: KlipFetch runs in Light Mode only.
-                },
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Light Mode is locked. Theme switching is currently disabled.',
+                          key: const Key('settings_theme_locked_caption'),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),
@@ -118,7 +144,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               leading: const Icon(Icons.cookie_outlined),
               title: const Text('Accounts & Cookies'),
               subtitle: Text(
-                '$connectedCount/3 platforms connected · Manage logins',
+                '$connectedCount of 3 platforms connected',
+                style: const TextStyle(
+                  fontFeatures: [FontFeature.tabularFigures()],
+                ),
               ),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: () {
@@ -145,7 +174,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     runSpacing: 8,
                     children: AppSettings.supportedQualities.map((quality) {
                       return ChoiceChip(
-                        label: Text(quality),
+                        label: Text(quality == 'best' ? 'Best' : quality),
                         selected: settings.defaultQuality == quality,
                         onSelected: (_) {
                           ref
@@ -337,6 +366,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                   const SizedBox(height: 12),
                   FilledButton.tonalIcon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: KlipFetchTheme.lightTonalFill,
+                      foregroundColor: KlipFetchTheme.lightOnTonal,
+                      side: BorderSide(
+                        color: KlipFetchTheme.brandAccent.withValues(alpha: 0.35),
+                      ),
+                    ),
                     onPressed: _updatingYtDlp
                         ? null
                         : () => _updateYtDlp(settings.updateChannel),

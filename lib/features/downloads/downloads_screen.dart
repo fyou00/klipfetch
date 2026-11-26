@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/queue_item.dart';
 import '../../state/providers.dart';
+import '../../theme/app_theme.dart';
 import '../../widgets/platform_badge.dart';
 
 class DownloadsScreen extends ConsumerStatefulWidget {
@@ -85,12 +86,22 @@ class _DownloadsScreenState extends ConsumerState<DownloadsScreen> {
                 segments: [
                   ButtonSegment<bool>(
                     value: false,
-                    label: Text('Active (${activeItems.length})'),
+                    label: Text(
+                      'Active (${activeItems.length})',
+                      style: const TextStyle(
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    ),
                     icon: const Icon(Icons.downloading_rounded),
                   ),
                   ButtonSegment<bool>(
                     value: true,
-                    label: Text('History (${historyItems.length})'),
+                    label: Text(
+                      'History (${historyItems.length})',
+                      style: const TextStyle(
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    ),
                     icon: const Icon(Icons.history_rounded),
                   ),
                 ],
@@ -228,22 +239,21 @@ class _QueueItemCard extends StatelessWidget {
     final scheme = theme.colorScheme;
 
     final phaseColor = switch (item.phase) {
-      DownloadPhase.completed => const Color(0xFF3FB950),
+      DownloadPhase.completed => KlipFetchTheme.successTone.ink,
       DownloadPhase.failed => scheme.error,
       DownloadPhase.cancelled => scheme.onSurfaceVariant,
       _ => scheme.primary,
     };
 
-    final metrics = [
-      item.phase.label,
+    final metricParts = [
       if (item.isActive && item.progress > 0) '${item.progress.round()}%',
       if (speedLabel.isNotEmpty) speedLabel,
       if (etaLabel.isNotEmpty) etaLabel,
       if (bytesLabel.isNotEmpty) bytesLabel,
       if (item.qualityLabel != null && item.qualityLabel!.isNotEmpty)
-        item.qualityLabel!,
+        item.qualityLabel == 'best' ? 'Best' : item.qualityLabel!,
       if (item.exportedCount > 1) '${item.exportedCount} files',
-    ].join(' · ');
+    ];
 
     return Card(
       key: Key('queue_card_${item.id}'),
@@ -279,13 +289,24 @@ class _QueueItemCard extends StatelessWidget {
                 fontWeight: FontWeight.w600,
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              metrics,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
+            if (metricParts.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 12,
+                runSpacing: 4,
+                children: metricParts
+                    .map(
+                      (part) => Text(
+                        part,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    )
+                    .toList(),
               ),
-            ),
+            ],
             if (item.isActive) ...[
               const SizedBox(height: 10),
               ClipRRect(
@@ -307,7 +328,7 @@ class _QueueItemCard extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: const Color(0xFF3FB950),
+                  color: KlipFetchTheme.successTone.ink,
                 ),
               ),
             ],

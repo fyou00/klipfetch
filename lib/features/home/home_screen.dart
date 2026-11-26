@@ -9,6 +9,7 @@ import '../../models/media_platform.dart';
 import '../../models/media_probe.dart';
 import '../../services/url_extractor.dart';
 import '../../state/providers.dart';
+import '../../theme/app_theme.dart';
 import '../../widgets/platform_badge.dart';
 import '../auth/auth_browser_screen.dart';
 
@@ -238,15 +239,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: scheme.primary.withValues(alpha: 0.16),
+                  color: KlipFetchTheme.lightTonalFill,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: scheme.primary.withValues(alpha: 0.4),
+                    color: KlipFetchTheme.brandAccent.withValues(alpha: 0.28),
                   ),
                 ),
-                child: Icon(
+                child: const Icon(
                   Icons.download_for_offline_rounded,
-                  color: scheme.primary,
+                  color: KlipFetchTheme.lightOnTonal,
                 ),
               ),
               const SizedBox(width: 12),
@@ -261,7 +262,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       ),
                     ),
                     Text(
-                      'TikTok · Instagram · YouTube',
+                      'Media downloader for Android',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: scheme.onSurfaceVariant,
                       ),
@@ -421,7 +422,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           if (probeState.errorMessage != null) ...[
             const SizedBox(height: 12),
             Card(
-              color: scheme.errorContainer.withValues(alpha: 0.35),
+              color: KlipFetchTheme.lightErrorFill,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: const BorderSide(color: KlipFetchTheme.lightErrorBorder),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(14),
                 child: Column(
@@ -450,6 +455,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         alignment: Alignment.centerRight,
                         child: FilledButton.tonalIcon(
                           key: const Key('home_auth_error_button'),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: KlipFetchTheme.lightTonalFill,
+                            foregroundColor: KlipFetchTheme.lightOnTonal,
+                            side: BorderSide(
+                              color: KlipFetchTheme.brandAccent.withValues(
+                                alpha: 0.35,
+                              ),
+                            ),
+                          ),
                           onPressed: _openAuthScreen,
                           icon: const Icon(Icons.login_rounded, size: 18),
                           label: Text(
@@ -566,6 +580,8 @@ class _ProbePreviewCard extends StatelessWidget {
         return '2160p (4K) (${option.format})';
       case '1440p':
         return '1440p (2K) (${option.format})';
+      case 'best':
+        return 'Best (${option.format})';
       default:
         return '${option.label} (${option.format})';
     }
@@ -630,13 +646,13 @@ class _ProbePreviewCard extends StatelessWidget {
                           if (probe.isPlaylist)
                             _InfoPill(
                               label:
-                                  'Playlist · ${probe.playlistEntries.length} videos',
+                                  'Playlist (${probe.playlistEntries.length} videos)',
                             ),
                           if (!probe.isPlaylist && probe.isCarousel)
                             _InfoPill(
                               label: isTikTok
-                                  ? 'Slideshow · ${probe.photoSlideCount} photos'
-                                  : 'Carousel · ${probe.photoSlideCount} items',
+                                  ? 'Slideshow (${probe.photoSlideCount} photos)'
+                                  : 'Carousel (${probe.photoSlideCount} items)',
                             ),
                         ],
                       ),
@@ -651,17 +667,43 @@ class _ProbePreviewCard extends StatelessWidget {
                       ),
                       if (probe.author.isNotEmpty || durationText.isNotEmpty)
                         Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Text(
-                            [
-                              if (probe.author.isNotEmpty) probe.author,
-                              if (durationText.isNotEmpty) durationText,
-                            ].join(' · '),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                            ),
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Wrap(
+                            spacing: 10,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              if (probe.author.isNotEmpty)
+                                Text(
+                                  probe.author,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: scheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              if (durationText.isNotEmpty)
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.schedule_rounded,
+                                      size: 13,
+                                      color: scheme.onSurfaceVariant,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      durationText,
+                                      style: theme.textTheme.bodySmall?.copyWith(
+                                        color: scheme.onSurfaceVariant,
+                                        fontFeatures: const [
+                                          FontFeature.tabularFigures(),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                            ],
                           ),
                         ),
                     ],
@@ -818,32 +860,38 @@ class _ProbePreviewCard extends StatelessWidget {
                   ),
                 ],
               ),
-              Container(
-                constraints: const BoxConstraints(maxHeight: 220),
-                decoration: BoxDecoration(
-                  border: Border.all(color: scheme.outlineVariant),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: probe.playlistEntries.length,
-                  itemBuilder: (context, idx) {
-                    final entry = probe.playlistEntries[idx];
-                    final checked =
-                        probeState.selectedPlaylistIndices.contains(entry.index);
-                    return CheckboxListTile(
-                      key: Key('playlist_entry_${entry.index}'),
-                      dense: true,
-                      controlAffinity: ListTileControlAffinity.leading,
-                      value: checked,
-                      title: Text(
-                        '${entry.index}. ${entry.title}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      onChanged: (_) => onTogglePlaylistEntry(entry.index),
-                    );
-                  },
+              Material(
+                color: KlipFetchTheme.lightSurfaceSubtle,
+                borderRadius: BorderRadius.circular(12),
+                clipBehavior: Clip.antiAlias,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 220),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: probe.playlistEntries.length,
+                    separatorBuilder: (context, index) => const Divider(
+                      height: 1,
+                      indent: 12,
+                      endIndent: 12,
+                    ),
+                    itemBuilder: (context, idx) {
+                      final entry = probe.playlistEntries[idx];
+                      final checked =
+                          probeState.selectedPlaylistIndices.contains(entry.index);
+                      return CheckboxListTile(
+                        key: Key('playlist_entry_${entry.index}'),
+                        dense: true,
+                        controlAffinity: ListTileControlAffinity.leading,
+                        value: checked,
+                        title: Text(
+                          '${entry.index}. ${entry.title}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        onChanged: (_) => onTogglePlaylistEntry(entry.index),
+                      );
+                    },
+                  ),
                 ),
               ),
             ],
@@ -875,17 +923,19 @@ class _InfoPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
+    const tone = KlipFetchTheme.neutralTone;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: scheme.secondaryContainer.withValues(alpha: 0.45),
+        color: tone.fill,
         borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: tone.border),
       ),
       child: Text(
         label,
         style: theme.textTheme.labelSmall?.copyWith(
-          color: scheme.onSecondaryContainer,
+          fontSize: 12,
+          color: tone.ink,
           fontWeight: FontWeight.w600,
         ),
       ),

@@ -16,7 +16,7 @@ class PlatformBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = KlipFetchTheme.platformColor(platform);
+    final tone = KlipFetchTheme.platformTone(platform);
     final icon = switch (platform) {
       MediaPlatform.tiktok => Icons.music_note_rounded,
       MediaPlatform.instagram => Icons.photo_camera_outlined,
@@ -30,21 +30,21 @@ class PlatformBadge extends StatelessWidget {
         vertical: compact ? 3 : 5,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.16),
+        color: tone.fill,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.45)),
+        border: Border.all(color: tone.border),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: compact ? 13 : 15, color: color),
+          Icon(icon, size: compact ? 14 : 15, color: tone.ink),
           const SizedBox(width: 5),
           Text(
             platform.displayName,
             style: TextStyle(
-              fontSize: compact ? 11 : 12,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: color,
+              color: tone.ink,
             ),
           ),
         ],
@@ -65,29 +65,29 @@ class EngineBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final label = switch ((engine, usedFallback)) {
       (DownloadEngine.rustCore, _) => 'Rust Core',
       (DownloadEngine.ytDlp, true) => 'yt-dlp fallback',
       (DownloadEngine.ytDlp, false) => 'yt-dlp',
     };
-    final color = engine == DownloadEngine.rustCore
-        ? const Color(0xFFF78166)
-        : (usedFallback ? const Color(0xFFD29922) : scheme.primary);
+    final tone = KlipFetchTheme.engineTone(
+      engine,
+      usedFallback: usedFallback,
+    );
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.14),
+        color: tone.fill,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.35)),
+        border: Border.all(color: tone.border),
       ),
       child: Text(
         label,
         style: TextStyle(
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: FontWeight.w600,
-          color: color,
+          color: tone.ink,
         ),
       ),
     );

@@ -445,6 +445,10 @@ void main() {
     expect(find.text('System'), findsOneWidget);
     expect(find.text('Dark'), findsOneWidget);
     expect(find.text('Light'), findsOneWidget);
+    expect(
+      find.byKey(const Key('settings_theme_locked_caption')),
+      findsOneWidget,
+    );
 
     await tester.ensureVisible(find.text('Dark'));
     await tester.tap(find.text('Dark'));
@@ -516,7 +520,7 @@ void main() {
     await tester.tap(find.byKey(const Key('home_fetch_button')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Playlist · 2 videos'), findsOneWidget);
+    expect(find.text('Playlist (2 videos)'), findsOneWidget);
     expect(find.byKey(const Key('home_subtitles_switch')), findsOneWidget);
     expect(find.byKey(const Key('home_sponsorblock_switch')), findsOneWidget);
 
@@ -545,7 +549,7 @@ void main() {
     await tester.tap(find.byKey(const Key('home_fetch_button')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Slideshow · 2 photos'), findsOneWidget);
+    expect(find.text('Slideshow (2 photos)'), findsOneWidget);
     final slideshowAudioSwitch =
         find.byKey(const Key('home_tiktok_slideshow_audio_switch'));
     await tester.ensureVisible(slideshowAudioSwitch);

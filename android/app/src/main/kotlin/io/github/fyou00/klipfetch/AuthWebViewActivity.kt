@@ -23,6 +23,7 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import java.util.Locale
 
@@ -92,12 +93,14 @@ class AuthWebViewActivity : Activity() {
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.parseColor("#0F172A"))
+            setBackgroundColor(Color.parseColor("#F5F2EC"))
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT,
             )
         }
+
+        WindowCompat.getInsetsController(window, root).isAppearanceLightStatusBars = true
 
         ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -106,6 +109,13 @@ class AuthWebViewActivity : Activity() {
         }
 
         val toolbar = buildToolbar()
+        val toolbarDivider = View(this).apply {
+            setBackgroundColor(Color.parseColor("#E4DDD3"))
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(1),
+            )
+        }
         progressBar = ProgressBar(
             this,
             null,
@@ -131,6 +141,7 @@ class AuthWebViewActivity : Activity() {
         configureWebView(webView)
 
         root.addView(toolbar)
+        root.addView(toolbarDivider)
         root.addView(progressBar)
         root.addView(webView)
         setContentView(root)
@@ -142,7 +153,7 @@ class AuthWebViewActivity : Activity() {
         val bar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setBackgroundColor(Color.parseColor("#111827"))
+            setBackgroundColor(Color.parseColor("#FFFCF7"))
             setPadding(dp(8), dp(8), dp(10), dp(8))
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -154,7 +165,7 @@ class AuthWebViewActivity : Activity() {
             text = "Close"
             isAllCaps = false
             background = null
-            setTextColor(Color.parseColor("#CBD5E1"))
+            setTextColor(Color.parseColor("#5F5852"))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
             setPadding(dp(8), dp(6), dp(8), dp(6))
             minWidth = 0
@@ -176,8 +187,8 @@ class AuthWebViewActivity : Activity() {
         }
 
         val titleView = TextView(this).apply {
-            text = "Sign in · $platformLabel"
-            setTextColor(Color.parseColor("#F8FAFC"))
+            text = "Sign in to $platformLabel"
+            setTextColor(Color.parseColor("#1B1816"))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
             typeface = Typeface.DEFAULT_BOLD
             maxLines = 1
@@ -186,7 +197,7 @@ class AuthWebViewActivity : Activity() {
 
         statusView = TextView(this).apply {
             text = "Log in, then tap Save Session"
-            setTextColor(Color.parseColor("#94A3B8"))
+            setTextColor(Color.parseColor("#5F5852"))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
             maxLines = 1
             ellipsize = TextUtils.TruncateAt.END
@@ -199,7 +210,7 @@ class AuthWebViewActivity : Activity() {
             text = "Reload"
             isAllCaps = false
             background = null
-            setTextColor(Color.parseColor("#CBD5E1"))
+            setTextColor(Color.parseColor("#5F5852"))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
             setPadding(dp(8), dp(6), dp(8), dp(6))
             minWidth = 0
@@ -212,14 +223,14 @@ class AuthWebViewActivity : Activity() {
         val saveBackground = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
             cornerRadius = dp(18).toFloat()
-            setColor(Color.parseColor("#10B981"))
+            setColor(Color.parseColor("#BF3909"))
         }
 
         val saveBtn = Button(this).apply {
             text = "Save Session"
             isAllCaps = false
             background = saveBackground
-            setTextColor(Color.parseColor("#042F2E"))
+            setTextColor(Color.parseColor("#FFFDF9"))
             typeface = Typeface.DEFAULT_BOLD
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
             setPadding(dp(14), dp(6), dp(14), dp(6))
@@ -284,11 +295,11 @@ class AuthWebViewActivity : Activity() {
     private fun refreshDetectedSessionStatus() {
         val snapshot = collectCapturedCookies()
         if (snapshot.hasAuthCookie) {
-            statusView.text = "Session detected (${snapshot.cookieCount} cookies) · Tap Save"
-            statusView.setTextColor(Color.parseColor("#34D399"))
+            statusView.text = "Session detected (${snapshot.cookieCount} cookies), tap Save"
+            statusView.setTextColor(Color.parseColor("#166E36"))
         } else if (snapshot.cookieCount > 0) {
-            statusView.text = "${snapshot.cookieCount} cookies loaded · Sign in then Save"
-            statusView.setTextColor(Color.parseColor("#CBD5E1"))
+            statusView.text = "${snapshot.cookieCount} cookies loaded, sign in then Save"
+            statusView.setTextColor(Color.parseColor("#8A5300"))
         }
     }
 
