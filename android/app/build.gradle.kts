@@ -60,6 +60,7 @@ flutter {
 
 dependencies {
     val youtubedlAndroidVersion = "0.18.1"
+    implementation("androidx.core:core-ktx:1.15.0")
     implementation("io.github.junkfood02.youtubedl-android:library:$youtubedlAndroidVersion")
     implementation("io.github.junkfood02.youtubedl-android:ffmpeg:$youtubedlAndroidVersion")
     implementation("io.github.junkfood02.youtubedl-android:aria2c:$youtubedlAndroidVersion")

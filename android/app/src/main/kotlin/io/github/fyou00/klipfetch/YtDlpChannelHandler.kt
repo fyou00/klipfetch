@@ -166,6 +166,8 @@ class YtDlpChannelHandler(
                     addOption("-o", outputTemplate)
                     addOption("--newline")
                     addOption("--no-playlist")
+                    addOption("--no-simulate")
+                    addOption("--print", "after_move:filepath")
                     if (audioOnly) {
                         addOption("-x")
                         addOption("--audio-format", audioFormat)
@@ -194,6 +196,8 @@ class YtDlpChannelHandler(
                     )
                 }
 
+                val resolvedOutputPath = resolveDownloadedFilePath(response.out, outputTemplate)
+
                 emitProgress(
                     mapOf(
                         "taskId" to taskId,
@@ -210,6 +214,7 @@ class YtDlpChannelHandler(
                         "exitCode" to response.exitCode,
                         "stdout" to response.out,
                         "stderr" to response.err,
+                        "outputPath" to resolvedOutputPath,
                     )
                 )
             } catch (_: YoutubeDL.CanceledException) {
@@ -253,6 +258,29 @@ class YtDlpChannelHandler(
         FFmpeg.getInstance().init(appContext)
         Aria2c.getInstance().init(appContext)
         initialized = true
+    }
+
+    private fun resolveDownloadedFilePath(stdout: String, outputTemplate: String): String? {
+        val printedPath = stdout
+            .lineSequence()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .toList()
+            .asReversed()
+            .firstOrNull { candidate -> File(candidate).isFile }
+        if (printedPath != null) return printedPath
+
+        val parentDir = File(outputTemplate).parentFile ?: return null
+        return parentDir
+            .listFiles()
+            ?.filter { file ->
+                file.isFile &&
+                    !file.name.endsWith(".part") &&
+                    !file.name.endsWith(".ytdl") &&
+                    !file.name.endsWith(".temp")
+            }
+            ?.maxByOrNull { it.lastModified() }
+            ?.absolutePath
     }
 
     private fun applyCookiesAndJsRuntime(request: YoutubeDLRequest, cookiesPath: String?) {
