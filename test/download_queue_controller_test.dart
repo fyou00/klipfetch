@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:klipfetch/models/app_settings.dart';
+import 'package:klipfetch/models/auth_models.dart';
 import 'package:klipfetch/models/download_models.dart';
 import 'package:klipfetch/models/media_platform.dart';
 import 'package:klipfetch/models/media_probe.dart';
@@ -18,6 +19,7 @@ import 'package:klipfetch/state/providers.dart';
 class _TestNativeEngine implements NativeEngineClient {
   int downloadCalls = 0;
   final Set<String> cancelledIds = {};
+  String? sharedCookiesPath;
   Future<DownloadOutcome> Function(DownloadRequest request)? onDownload;
 
   @override
@@ -84,12 +86,25 @@ class _TestNativeEngine implements NativeEngineClient {
 
   @override
   Future<void> clearDomainCookies(String domain) async {}
+
+  @override
+  Future<CookieDomainStatusInfo> getCookieDomainStatus(String domain) async =>
+      CookieDomainStatusInfo(
+        domain: domain,
+        hasCookies: sharedCookiesPath != null,
+        cookieCount: sharedCookiesPath != null ? 2 : 0,
+        hasAuthCookie: sharedCookiesPath != null,
+      );
+
+  @override
+  Future<String?> getSharedCookiesPath() async => sharedCookiesPath;
 }
 
 class _TestYtDlpEngine implements YtDlpEngineClient {
   int downloadCalls = 0;
   int activeCount = 0;
   int maxObservedConcurrent = 0;
+  DownloadRequest? lastRequest;
   Future<DownloadOutcome> Function(
     DownloadRequest request,
     void Function(DownloadProgressEvent event)? onProgress,
@@ -105,7 +120,11 @@ class _TestYtDlpEngine implements YtDlpEngineClient {
   Future<String?> updateYtDlp({String channel = 'stable'}) async => 'DONE';
 
   @override
-  Future<MediaProbeResult> probe(String url, {String? cookiesPath}) async {
+  Future<MediaProbeResult> probe(
+    String url, {
+    String? cookiesPath,
+    bool allowPlaylist = false,
+  }) async {
     return MediaProbeResult(
       platform: detectMediaPlatform(url),
       engine: DownloadEngine.ytDlp,
@@ -131,6 +150,7 @@ class _TestYtDlpEngine implements YtDlpEngineClient {
     void Function(DownloadProgressEvent event)? onProgress,
   }) async {
     downloadCalls++;
+    lastRequest = request;
     activeCount++;
     if (activeCount > maxObservedConcurrent) {
       maxObservedConcurrent = activeCount;
@@ -167,6 +187,8 @@ class _FakeAndroidPlatform implements AndroidPlatformClient {
   int updateFgCalls = 0;
   int stopFgCalls = 0;
   int exportCalls = 0;
+  int batchExportCalls = 0;
+  BatchExportedMedia? nextBatchExport;
 
   @override
   Future<String?> getInitialSharedText() async => null;
@@ -222,6 +244,32 @@ class _FakeAndroidPlatform implements AndroidPlatformClient {
       sizeBytes: 8192,
     );
   }
+
+  @override
+  Future<BatchExportedMedia?> exportStagingDirectory({
+    required String stagingDirPath,
+    required String platform,
+  }) async {
+    batchExportCalls++;
+    return nextBatchExport;
+  }
+
+  @override
+  Future<AuthBrowserCapture> openAuthBrowser({
+    required String platform,
+    required String loginUrl,
+    required List<String> cookieUrls,
+    required List<String> authCookieNames,
+  }) async {
+    return const AuthBrowserCapture(cancelled: true);
+  }
+
+  @override
+  Future<bool> clearWebViewCookies({
+    List<String> cookieUrls = const [],
+    bool clearAll = false,
+  }) async =>
+      true;
 
   @override
   Future<bool> openFile(String uriOrPath) async => true;
@@ -458,5 +506,115 @@ void main() {
     final recovered = container.read(downloadQueueProvider).first;
     expect(recovered.id, interrupted.id);
     expect(recovered.outputPath, 'Downloads/KlipFetch/TikTok/final.mp4');
+  });
+
+  test('exports multi-file directory via MediaStore and preserves exportedCount', () async {
+    android.nextBatchExport = const BatchExportedMedia(
+      primaryUri: 'content://media/external/downloads/201',
+      primaryDisplayPath: 'Downloads/KlipFetch/Instagram/post_1.mp4',
+      fileName: 'post_1.mp4',
+      totalSizeBytes: 24576,
+      exportedCount: 3,
+      displayPaths: [
+        'Downloads/KlipFetch/Instagram/post_1.mp4',
+        'Downloads/KlipFetch/Instagram/post_2.jpg',
+        'Downloads/KlipFetch/Instagram/post_3.jpg',
+      ],
+    );
+
+    final container = createContainer();
+    addTearDown(container.dispose);
+
+    await container.read(downloadQueueProvider.notifier).enqueueDownload(
+          url: 'https://www.instagram.com/p/CAROUSEL1/',
+          platform: MediaPlatform.instagram,
+          title: 'IG Carousel',
+          preferredEngine: DownloadEngine.rustCore,
+        );
+
+    await _pumpUntil(() {
+      final items = container.read(downloadQueueProvider);
+      return items.isNotEmpty && items.first.phase == DownloadPhase.completed;
+    });
+
+    final done = container.read(downloadQueueProvider).first;
+    expect(done.exportedCount, 3);
+    expect(done.outputPath, 'Downloads/KlipFetch/Instagram/post_1.mp4');
+    expect(done.totalBytes, 24576);
+    expect(android.batchExportCalls, 1);
+    expect(android.exportCalls, 0);
+  });
+
+  test('propagates shared cookiesPath, MKV container, subtitles, and SponsorBlock options', () async {
+    native.sharedCookiesPath = '/data/cookies/cookies.txt';
+    final container = createContainer();
+    addTearDown(container.dispose);
+
+    await container.read(downloadQueueProvider.notifier).enqueueDownload(
+          url: 'https://www.youtube.com/watch?v=substest',
+          platform: MediaPlatform.youtube,
+          title: 'YT With Subs',
+          preferredEngine: DownloadEngine.ytDlp,
+          formatSelector: 'bv*[height<=1440]+ba/b[height<=1440]/b',
+          qualityLabel: '1440p',
+          mergeOutputFormat: 'mkv',
+          downloadSubtitles: true,
+          embedSubtitles: true,
+          subtitleLangs: 'en,id',
+          sponsorBlockCategories: const ['sponsor', 'selfpromo'],
+        );
+
+    await _pumpUntil(() {
+      final items = container.read(downloadQueueProvider);
+      return items.isNotEmpty && items.first.phase == DownloadPhase.completed;
+    });
+
+    final req = ytdlp.lastRequest!;
+    expect(req.cookiesPath, '/data/cookies/cookies.txt');
+    expect(req.mergeOutputFormat, 'mkv');
+    expect(req.downloadSubtitles, isTrue);
+    expect(req.embedSubtitles, isTrue);
+    expect(req.subtitleLangs, 'en,id');
+    expect(req.sponsorBlockCategories, ['sponsor', 'selfpromo']);
+  });
+
+  test('enqueues selected playlist items and downloads all within concurrency limit', () async {
+    await settingsStorage.save(const AppSettings(maxConcurrentDownloads: 2));
+    final container = createContainer();
+    addTearDown(container.dispose);
+    await container.read(settingsProvider.notifier).load();
+
+    final created = await container
+        .read(downloadQueueProvider.notifier)
+        .enqueuePlaylistSelection(
+          entries: const [
+            PlaylistEntry(
+              index: 1,
+              id: 'ep1',
+              title: 'Episode 1',
+              url: 'https://www.youtube.com/watch?v=ep1',
+            ),
+            PlaylistEntry(
+              index: 2,
+              id: 'ep2',
+              title: 'Episode 2',
+              url: 'https://www.youtube.com/watch?v=ep2',
+            ),
+          ],
+          preferredEngine: DownloadEngine.ytDlp,
+          qualityLabel: '1080p',
+          mergeOutputFormat: 'mp4',
+        );
+
+    expect(created.length, 2);
+
+    await _pumpUntil(() {
+      final items = container.read(downloadQueueProvider);
+      return items.length == 2 &&
+          items.every((e) => e.phase == DownloadPhase.completed);
+    });
+
+    expect(ytdlp.downloadCalls, 2);
+    expect(ytdlp.maxObservedConcurrent, lessThanOrEqualTo(2));
   });
 }

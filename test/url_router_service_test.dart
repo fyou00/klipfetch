@@ -65,11 +65,26 @@ class _FakeNativeEngine implements NativeEngineClient {
 
   @override
   Future<void> clearDomainCookies(String domain) async {}
+
+  @override
+  Future<CookieDomainStatusInfo> getCookieDomainStatus(String domain) async =>
+      CookieDomainStatusInfo(
+        domain: domain,
+        hasCookies: false,
+        cookieCount: 0,
+        hasAuthCookie: false,
+      );
+
+  @override
+  Future<String?> getSharedCookiesPath() async => null;
 }
 
 class _FakeYtDlpEngine implements YtDlpEngineClient {
   int probeCalls = 0;
   int downloadCalls = 0;
+  String? lastCookiesPath;
+  bool? lastAllowPlaylist;
+  DownloadRequest? lastDownloadRequest;
 
   @override
   Future<String?> init() async => '2026.11.01';
@@ -81,8 +96,14 @@ class _FakeYtDlpEngine implements YtDlpEngineClient {
   Future<String?> updateYtDlp({String channel = 'stable'}) async => 'DONE';
 
   @override
-  Future<MediaProbeResult> probe(String url, {String? cookiesPath}) async {
+  Future<MediaProbeResult> probe(
+    String url, {
+    String? cookiesPath,
+    bool allowPlaylist = false,
+  }) async {
     probeCalls++;
+    lastCookiesPath = cookiesPath;
+    lastAllowPlaylist = allowPlaylist;
     return MediaProbeResult(
       platform: detectMediaPlatform(url),
       engine: DownloadEngine.ytDlp,
@@ -108,6 +129,7 @@ class _FakeYtDlpEngine implements YtDlpEngineClient {
     void Function(DownloadProgressEvent event)? onProgress,
   }) async {
     downloadCalls++;
+    lastDownloadRequest = request;
     return DownloadOutcome(
       taskId: request.taskId,
       engine: DownloadEngine.ytDlp,
@@ -309,6 +331,86 @@ void main() {
         '1080p',
         '360p',
       ]);
+    });
+  });
+
+  group('Phase 3 routing rules', () {
+    late _FakeNativeEngine native;
+    late _FakeYtDlpEngine ytdlp;
+    late UrlRouterService router;
+
+    setUp(() {
+      native = _FakeNativeEngine();
+      ytdlp = _FakeYtDlpEngine();
+      router = UrlRouterService(nativeEngine: native, ytDlpEngine: ytdlp);
+    });
+
+    test('isInstagramStoryUrl detects stories and highlights only', () {
+      expect(
+        isInstagramStoryUrl('https://www.instagram.com/stories/alice/123456/'),
+        isTrue,
+      );
+      expect(
+        isInstagramStoryUrl('https://instagram.com/stories/highlights/999/'),
+        isTrue,
+      );
+      expect(
+        isInstagramStoryUrl('https://www.instagram.com/reel/Dbi_MeVOphM/'),
+        isFalse,
+      );
+      expect(
+        isInstagramStoryUrl('https://www.youtube.com/stories/123'),
+        isFalse,
+      );
+    });
+
+    test('routes Instagram Stories directly to yt-dlp with cookiesPath', () async {
+      const url = 'https://www.instagram.com/stories/alice/987654321/';
+      final probe = await router.probe(
+        url,
+        cookiesPath: '/data/cookies/cookies.txt',
+      );
+      final outcome = await router.download(
+        const DownloadRequest(
+          taskId: 'ig-story-1',
+          url: url,
+          outputDir: '/tmp/out',
+          cookiesPath: '/data/cookies/cookies.txt',
+        ),
+      );
+
+      expect(probe.engine, DownloadEngine.ytDlp);
+      expect(outcome.engine, DownloadEngine.ytDlp);
+      expect(native.probeCalls, 0);
+      expect(native.downloadCalls, 0);
+      expect(ytdlp.lastCookiesPath, '/data/cookies/cookies.txt');
+      expect(
+        ytdlp.lastDownloadRequest?.cookiesPath,
+        '/data/cookies/cookies.txt',
+      );
+    });
+
+    test('routes Instagram audioOnly and YouTube playlists directly to yt-dlp', () async {
+      final igOutcome = await router.download(
+        const DownloadRequest(
+          taskId: 'ig-audio-1',
+          url: 'https://www.instagram.com/reel/Cxyz123/',
+          outputDir: '/tmp/out',
+          audioOnly: true,
+          audioFormat: 'mp3',
+        ),
+      );
+
+      expect(igOutcome.engine, DownloadEngine.ytDlp);
+      expect(native.downloadCalls, 0);
+
+      await router.probe(
+        'https://www.youtube.com/playlist?list=PL123',
+        cookiesPath: '/data/cookies/cookies.txt',
+        allowPlaylist: true,
+      );
+      expect(ytdlp.lastAllowPlaylist, isTrue);
+      expect(ytdlp.lastCookiesPath, '/data/cookies/cookies.txt');
     });
   });
 }
