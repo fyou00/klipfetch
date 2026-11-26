@@ -1,0 +1,4 @@
+Initial v0.1.0 release:
+- Dual-engine Android downloader (libreget-core Rust FFI + youtubedl-android/FFmpeg/QuickJS-NG) strictly for TikTok, Instagram, and YouTube.
+- Material 3 Home, Downloads, Settings, and Accounts & Cookies screens with Android Share Sheet, Foreground Service, and MediaStore export.
+- Native WebView HttpOnly cookie auth, Instagram Stories/Carousels, TikTok slideshows with audio toggle, YouTube 4K/MKV/Playlists/Subtitles/SponsorBlock.

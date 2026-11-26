@@ -1,0 +1,4 @@
+Rilis perdana v0.1.0:
+- Mesin unduhan Dual-Engine Android (Rust libreget-core + youtubedl-android/FFmpeg/QuickJS-NG) khusus TikTok, Instagram, dan YouTube.
+- UI Material 3 lengkap (Home, Downloads, Settings, Accounts & Cookies) dengan Share Sheet, Foreground Service, dan MediaStore.
+- Dukungan WebView HttpOnly cookie, Instagram Stories/Carousels, TikTok slideshow + audio latar, YouTube 4K/MKV/Playlist/Subtitle/SponsorBlock.

@@ -1,0 +1,8 @@
+KlipFetch is a free, open-source (GPL-3.0) Android-only media downloader focused strictly on TikTok, Instagram, and YouTube.
+
+Key features:
+- Dual-Engine hybrid architecture: fast native Rust extractors (libreget-core via flutter_rust_bridge) for TikTok & Instagram with automatic fallback to youtubedl-android (yt-dlp + FFmpeg + QuickJS-NG) for YouTube and adaptive streams.
+- Native Android integration: Share Sheet receiver (share links straight from YouTube, TikTok, or Instagram), Foreground Service background downloads, and MediaStore export to Downloads/KlipFetch/.
+- Logged-in session support: built-in Android WebView cookie capture for Instagram Stories/Highlights, private posts, and age-restricted streams, stored strictly in app-private storage.
+- YouTube power options: 4K/2160p, 1440p, 1080p, 720p, and 480p upper-bound selection, MP4/MKV containers, selective Playlist item picker, SRT/VTT subtitles, SponsorBlock segment removal, and audio extraction (M4A/MP3/Opus).
+- Zero Google Play Services, zero analytics, and zero ad SDKs.
