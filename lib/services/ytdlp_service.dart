@@ -89,7 +89,8 @@ class YtDlpService implements YtDlpEngineClient {
         '${request.outputDir}/%(title).120B [%(id)s].%(ext)s';
 
     try {
-      await _methodChannel.invokeMethod<Map<dynamic, dynamic>>('download', {
+      final result =
+          await _methodChannel.invokeMethod<Map<dynamic, dynamic>>('download', {
         'taskId': request.taskId,
         'url': request.url,
         'outputTemplate': outputTemplate,
@@ -100,10 +101,13 @@ class YtDlpService implements YtDlpEngineClient {
         'extraArgs': request.extraArgs,
       });
 
+      final resolvedPath = result?['outputPath'] as String?;
       return DownloadOutcome(
         taskId: request.taskId,
         engine: DownloadEngine.ytDlp,
-        outputPath: request.outputDir,
+        outputPath: (resolvedPath != null && resolvedPath.isNotEmpty)
+            ? resolvedPath
+            : request.outputDir,
       );
     } on PlatformException catch (e) {
       if (e.code == 'CANCELLED') {
