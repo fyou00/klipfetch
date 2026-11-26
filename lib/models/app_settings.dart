@@ -41,7 +41,7 @@ enum AppThemeMode {
 
 class AppSettings {
   const AppSettings({
-    this.themeMode = AppThemeMode.dark,
+    this.themeMode = AppThemeMode.light,
     this.defaultQuality = '1080p',
     this.defaultVideoContainer = 'mp4',
     this.defaultAudioFormat = 'm4a',
@@ -153,7 +153,7 @@ class AppSettings {
     return AppSettings(
       themeMode: json.containsKey('themeMode')
           ? AppThemeMode.fromName(json['themeMode'] as String?)
-          : AppThemeMode.dark,
+          : AppThemeMode.light,
       defaultQuality: supportedQualities.contains(quality) ? quality! : '1080p',
       defaultVideoContainer: supportedVideoContainers.contains(container)
           ? container!

@@ -85,9 +85,6 @@ class _KlipFetchAppState extends ConsumerState<KlipFetchApp> {
 
   @override
   Widget build(BuildContext context) {
-    final themeMode = ref.watch(
-      settingsProvider.select((s) => s.themeMode.toFlutterThemeMode()),
-    );
     final selectedTab = ref.watch(selectedTabProvider);
     final activeCount = ref.watch(
       downloadQueueProvider.select(
@@ -99,8 +96,7 @@ class _KlipFetchAppState extends ConsumerState<KlipFetchApp> {
       title: 'KlipFetch',
       debugShowCheckedModeBanner: false,
       theme: KlipFetchTheme.light(),
-      darkTheme: KlipFetchTheme.dark(),
-      themeMode: themeMode,
+      themeMode: ThemeMode.light,
       home: Scaffold(
         body: IndexedStack(
           index: selectedTab,

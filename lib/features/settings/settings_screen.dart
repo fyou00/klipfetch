@@ -103,13 +103,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       ),
                     )
                     .toList(),
-                selected: {settings.themeMode},
-                onSelectionChanged: (selection) {
-                  if (selection.isNotEmpty) {
-                    ref
-                        .read(settingsProvider.notifier)
-                        .setThemeMode(selection.first);
-                  }
+                selected: const {AppThemeMode.light},
+                onSelectionChanged: (_) {
+                  // Intentionally non-functional: KlipFetch runs in Light Mode only.
                 },
               ),
             ),

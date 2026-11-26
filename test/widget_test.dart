@@ -442,8 +442,12 @@ void main() {
     await tester.tap(find.text('Settings'));
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Light'));
-    await tester.tap(find.text('Light'));
+    expect(find.text('System'), findsOneWidget);
+    expect(find.text('Dark'), findsOneWidget);
+    expect(find.text('Light'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Dark'));
+    await tester.tap(find.text('Dark'));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('2160p'));
     await tester.tap(find.text('2160p'));
