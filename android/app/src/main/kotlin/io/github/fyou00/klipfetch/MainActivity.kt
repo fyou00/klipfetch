@@ -40,6 +40,14 @@ class MainActivity : FlutterActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
     }
 
+    @Suppress("DEPRECATION")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (platformHandler?.onActivityResult(requestCode, resultCode, data) == true) {
+            return
+        }
+        super.onActivityResult(requestCode, resultCode, data)
+    }
+
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
         ytDlpHandler?.dispose()
         ytDlpHandler = null

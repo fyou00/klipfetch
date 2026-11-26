@@ -19,6 +19,79 @@ object MediaStoreExporter {
         val sizeBytes: Long,
     )
 
+    data class BatchExportResult(
+        val primaryUri: String,
+        val primaryDisplayPath: String,
+        val fileName: String,
+        val totalSizeBytes: Long,
+        val exportedCount: Int,
+        val displayPaths: List<String>,
+    )
+
+    fun exportDirectory(
+        context: Context,
+        stagingDirPath: String,
+        platform: String,
+    ): BatchExportResult {
+        val dir = File(stagingDirPath)
+        if (!dir.exists() || !dir.isDirectory) {
+            throw IOException("Staging directory does not exist: $stagingDirPath")
+        }
+
+        val candidates = dir
+            .listFiles()
+            ?.filter { file ->
+                file.isFile &&
+                    file.length() > 0 &&
+                    !file.name.endsWith(".part") &&
+                    !file.name.endsWith(".ytdl") &&
+                    !file.name.endsWith(".temp")
+            }
+            ?.sortedBy { it.name.lowercase() }
+            ?: emptyList()
+
+        if (candidates.isEmpty()) {
+            throw IOException("No completed media files found in $stagingDirPath")
+        }
+
+        val primaryCandidate = candidates.minByOrNull { mediaPriority(it.name) } ?: candidates.first()
+        val displayPaths = mutableListOf<String>()
+        var totalSize = 0L
+        var primaryExport: ExportResult? = null
+
+        for (file in candidates) {
+            val exported = export(
+                context = context,
+                stagedFilePath = file.absolutePath,
+                platform = platform,
+            )
+            displayPaths.add(exported.displayPath)
+            totalSize += exported.sizeBytes
+            if (file.absolutePath == primaryCandidate.absolutePath) {
+                primaryExport = exported
+            }
+        }
+
+        val resolvedPrimary = primaryExport ?: throw IOException("Failed to resolve exported media")
+        return BatchExportResult(
+            primaryUri = resolvedPrimary.uri,
+            primaryDisplayPath = resolvedPrimary.displayPath,
+            fileName = resolvedPrimary.fileName,
+            totalSizeBytes = totalSize,
+            exportedCount = candidates.size,
+            displayPaths = displayPaths,
+        )
+    }
+
+    private fun mediaPriority(fileName: String): Int {
+        return when (fileName.substringAfterLast('.', "").lowercase()) {
+            "mp4", "mkv", "webm", "mov" -> 0
+            "jpg", "jpeg", "png", "webp" -> 1
+            "m4a", "mp3", "opus", "ogg", "wav" -> 2
+            else -> 3
+        }
+    }
+
     fun export(
         context: Context,
         stagedFilePath: String,
@@ -205,6 +278,8 @@ object MediaStoreExporter {
             "jpg", "jpeg" -> "image/jpeg"
             "png" -> "image/png"
             "webp" -> "image/webp"
+            "srt" -> "application/x-subrip"
+            "vtt" -> "text/vtt"
             else -> "application/octet-stream"
         }
     }

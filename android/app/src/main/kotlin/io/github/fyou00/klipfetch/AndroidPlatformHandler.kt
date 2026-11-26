@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.webkit.CookieManager
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
@@ -31,6 +32,7 @@ class AndroidPlatformHandler(
         const val METHOD_CHANNEL = "io.github.fyou00.klipfetch/platform"
         const val EVENT_CHANNEL = "io.github.fyou00.klipfetch/platform_events"
         private const val REQUEST_POST_NOTIFICATIONS = 4201
+        private const val REQUEST_AUTH_BROWSER = 4202
     }
 
     private val appContext = activity.applicationContext
@@ -47,6 +49,7 @@ class AndroidPlatformHandler(
     private var pendingSharedText: String? = null
 
     private var pendingPermissionResult: MethodChannel.Result? = null
+    private var pendingAuthResult: MethodChannel.Result? = null
 
     init {
         methodChannel.setMethodCallHandler(this)
@@ -69,6 +72,7 @@ class AndroidPlatformHandler(
         }
         eventSink = null
         pendingPermissionResult = null
+        pendingAuthResult = null
         scope.cancel()
     }
 
@@ -107,6 +111,45 @@ class AndroidPlatformHandler(
         return true
     }
 
+    fun onActivityResult(
+        requestCode: Int,
+        resultCode: Int,
+        data: Intent?,
+    ): Boolean {
+        if (requestCode != REQUEST_AUTH_BROWSER) return false
+        val result = pendingAuthResult
+        pendingAuthResult = null
+        if (result == null) return true
+
+        if (resultCode == Activity.RESULT_OK && data != null) {
+            val netscapeCookies = data.getStringExtra(AuthWebViewActivity.RESULT_NETSCAPE_COOKIES) ?: ""
+            val cookieCount = data.getIntExtra(AuthWebViewActivity.RESULT_COOKIE_COUNT, 0)
+            val hasAuthCookie = data.getBooleanExtra(AuthWebViewActivity.RESULT_HAS_AUTH_COOKIE, false)
+            mainHandler.post {
+                result.success(
+                    mapOf(
+                        "cancelled" to false,
+                        "netscapeCookies" to netscapeCookies,
+                        "cookieCount" to cookieCount,
+                        "hasAuthCookie" to hasAuthCookie,
+                    )
+                )
+            }
+        } else {
+            mainHandler.post {
+                result.success(
+                    mapOf(
+                        "cancelled" to true,
+                        "netscapeCookies" to "",
+                        "cookieCount" to 0,
+                        "hasAuthCookie" to false,
+                    )
+                )
+            }
+        }
+        return true
+    }
+
     override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
         eventSink = events
     }
@@ -131,6 +174,9 @@ class AndroidPlatformHandler(
             }
 
             "exportToMediaStore" -> handleExportToMediaStore(call, result)
+            "exportStagingDirectory" -> handleExportStagingDirectory(call, result)
+            "openAuthBrowser" -> handleOpenAuthBrowser(call, result)
+            "clearWebViewCookies" -> handleClearWebViewCookies(call, result)
             "openFile" -> handleOpenFile(call, result)
             "shareFile" -> handleShareFile(call, result)
             "requestNotificationPermission" -> handleRequestNotificationPermission(result)
@@ -196,6 +242,123 @@ class AndroidPlatformHandler(
                         null,
                     )
                 }
+            }
+        }
+    }
+
+    private fun handleExportStagingDirectory(
+        call: MethodCall,
+        result: MethodChannel.Result,
+    ) {
+        val stagingDirPath = call.argument<String>("stagingDirPath")
+        val platform = call.argument<String>("platform")
+        if (stagingDirPath.isNullOrBlank() || platform.isNullOrBlank()) {
+            result.error("INVALID_ARGS", "stagingDirPath and platform are required", null)
+            return
+        }
+
+        scope.launch {
+            try {
+                val exported = MediaStoreExporter.exportDirectory(
+                    context = appContext,
+                    stagingDirPath = stagingDirPath,
+                    platform = platform,
+                )
+                mainHandler.post {
+                    result.success(
+                        mapOf(
+                            "primaryUri" to exported.primaryUri,
+                            "primaryDisplayPath" to exported.primaryDisplayPath,
+                            "fileName" to exported.fileName,
+                            "totalSizeBytes" to exported.totalSizeBytes,
+                            "exportedCount" to exported.exportedCount,
+                            "displayPaths" to exported.displayPaths,
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                mainHandler.post {
+                    result.error(
+                        "MEDIASTORE_BATCH_EXPORT_ERROR",
+                        e.message ?: "Failed to export staging directory to Downloads",
+                        null,
+                    )
+                }
+            }
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun handleOpenAuthBrowser(
+        call: MethodCall,
+        result: MethodChannel.Result,
+    ) {
+        val platform = call.argument<String>("platform")
+        val loginUrl = call.argument<String>("loginUrl")
+        if (platform.isNullOrBlank() || loginUrl.isNullOrBlank()) {
+            result.error("INVALID_ARGS", "platform and loginUrl are required", null)
+            return
+        }
+        if (pendingAuthResult != null) {
+            result.error("AUTH_IN_PROGRESS", "Another auth browser session is already active", null)
+            return
+        }
+
+        val cookieUrls = ArrayList(call.argument<List<String>>("cookieUrls") ?: emptyList())
+        val authCookieNames = ArrayList(call.argument<List<String>>("authCookieNames") ?: emptyList())
+
+        val intent = Intent(activity, AuthWebViewActivity::class.java).apply {
+            putExtra(AuthWebViewActivity.EXTRA_PLATFORM, platform)
+            putExtra(AuthWebViewActivity.EXTRA_LOGIN_URL, loginUrl)
+            putStringArrayListExtra(AuthWebViewActivity.EXTRA_COOKIE_URLS, cookieUrls)
+            putStringArrayListExtra(AuthWebViewActivity.EXTRA_AUTH_COOKIE_NAMES, authCookieNames)
+        }
+
+        pendingAuthResult = result
+        try {
+            activity.startActivityForResult(intent, REQUEST_AUTH_BROWSER)
+        } catch (e: Exception) {
+            pendingAuthResult = null
+            result.error("AUTH_LAUNCH_ERROR", e.message ?: "Failed to open auth browser", null)
+        }
+    }
+
+    private fun handleClearWebViewCookies(
+        call: MethodCall,
+        result: MethodChannel.Result,
+    ) {
+        val clearAll = call.argument<Boolean>("clearAll") ?: false
+        val cookieUrls = call.argument<List<String>>("cookieUrls") ?: emptyList()
+
+        mainHandler.post {
+            try {
+                val cookieManager = CookieManager.getInstance()
+                if (clearAll) {
+                    cookieManager.removeAllCookies { _ ->
+                        cookieManager.flush()
+                        result.success(true)
+                    }
+                    return@post
+                }
+
+                for (rawUrl in cookieUrls) {
+                    val existing = cookieManager.getCookie(rawUrl) ?: continue
+                    val host = Uri.parse(rawUrl).host?.lowercase() ?: continue
+                    val rootDomain = host.removePrefix("www.").removePrefix("m.")
+                    for (pair in existing.split(';')) {
+                        val eq = pair.indexOf('=')
+                        if (eq <= 0) continue
+                        val name = pair.substring(0, eq).trim()
+                        if (name.isEmpty()) continue
+                        cookieManager.setCookie(rawUrl, "$name=; Max-Age=0; Path=/")
+                        cookieManager.setCookie(rawUrl, "$name=; Domain=$host; Max-Age=0; Path=/")
+                        cookieManager.setCookie(rawUrl, "$name=; Domain=.$rootDomain; Max-Age=0; Path=/")
+                    }
+                }
+                cookieManager.flush()
+                result.success(true)
+            } catch (e: Exception) {
+                result.error("CLEAR_COOKIES_ERROR", e.message ?: "Failed to clear WebView cookies", null)
             }
         }
     }

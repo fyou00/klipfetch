@@ -121,13 +121,18 @@ class YtDlpChannelHandler(
             return
         }
         val cookiesPath = call.argument<String>("cookiesPath")
+        val allowPlaylist = call.argument<Boolean>("allowPlaylist") ?: false
 
         scope.launch {
             try {
                 ensureInitialized()
                 val request = YoutubeDLRequest(url).apply {
                     addOption("--dump-single-json")
-                    addOption("--no-playlist")
+                    if (allowPlaylist) {
+                        addOption("--flat-playlist")
+                    } else {
+                        addOption("--no-playlist")
+                    }
                     addOption("--no-warnings")
                 }
                 applyCookiesAndJsRuntime(request, cookiesPath)
@@ -152,7 +157,16 @@ class YtDlpChannelHandler(
         val audioOnly = call.argument<Boolean>("audioOnly") ?: false
         val audioFormat = call.argument<String>("audioFormat") ?: "m4a"
         val cookiesPath = call.argument<String>("cookiesPath")
+        val allowPlaylist = call.argument<Boolean>("allowPlaylist") ?: false
+        val playlistItems = call.argument<String>("playlistItems")
+        val mergeOutputFormat = call.argument<String>("mergeOutputFormat") ?: "mp4"
+        val downloadSubtitles = call.argument<Boolean>("downloadSubtitles") ?: false
+        val embedSubtitles = call.argument<Boolean>("embedSubtitles") ?: true
+        val subtitleLangs = call.argument<String>("subtitleLangs") ?: "en,id"
+        val sponsorBlockCategories = call.argument<List<String>>("sponsorBlockCategories") ?: emptyList()
         val extraArgs = call.argument<List<String>>("extraArgs") ?: emptyList()
+
+        val safeContainer = if (mergeOutputFormat.lowercase() == "mkv") "mkv" else "mp4"
 
         scope.launch {
             try {
@@ -165,7 +179,14 @@ class YtDlpChannelHandler(
                 val request = YoutubeDLRequest(url).apply {
                     addOption("-o", outputTemplate)
                     addOption("--newline")
-                    addOption("--no-playlist")
+                    if (allowPlaylist) {
+                        addOption("--yes-playlist")
+                        if (!playlistItems.isNullOrBlank()) {
+                            addOption("--playlist-items", playlistItems)
+                        }
+                    } else {
+                        addOption("--no-playlist")
+                    }
                     addOption("--no-simulate")
                     addOption("--print", "after_move:filepath")
                     if (audioOnly) {
@@ -173,10 +194,22 @@ class YtDlpChannelHandler(
                         addOption("--audio-format", audioFormat)
                     } else if (!formatSelector.isNullOrBlank()) {
                         addOption("-f", formatSelector)
-                        addOption("--merge-output-format", "mp4")
+                        addOption("--merge-output-format", safeContainer)
                     } else {
                         addOption("-f", "bv*+ba/b")
-                        addOption("--merge-output-format", "mp4")
+                        addOption("--merge-output-format", safeContainer)
+                    }
+                    if (downloadSubtitles && !audioOnly) {
+                        addOption("--write-subs")
+                        addOption("--write-auto-subs")
+                        addOption("--sub-langs", if (subtitleLangs.isBlank()) "en,id" else subtitleLangs)
+                        addOption("--sub-format", "srt/vtt/best")
+                        if (embedSubtitles) {
+                            addOption("--embed-subs")
+                        }
+                    }
+                    if (sponsorBlockCategories.isNotEmpty()) {
+                        addOption("--sponsorblock-remove", sponsorBlockCategories.joinToString(","))
                     }
                     if (extraArgs.isNotEmpty()) {
                         addCommands(extraArgs)
@@ -185,18 +218,33 @@ class YtDlpChannelHandler(
                 applyCookiesAndJsRuntime(request, cookiesPath)
 
                 val response = YoutubeDL.getInstance().execute(request, taskId) { progress, etaInSeconds, line ->
+                    val lineText: String? = line
+                    val phase = if (
+                        lineText != null && (
+                            lineText.contains("[Merger]") ||
+                                lineText.contains("[ExtractAudio]") ||
+                                lineText.contains("[EmbedSubtitle]") ||
+                                lineText.contains("[SponsorBlock]") ||
+                                lineText.contains("[Fixup")
+                            )
+                    ) {
+                        "muxing"
+                    } else {
+                        "downloading"
+                    }
                     emitProgress(
                         mapOf(
                             "taskId" to taskId,
                             "percent" to progress.toDouble(),
                             "etaSeconds" to if (etaInSeconds >= 0) etaInSeconds else null,
-                            "phase" to "downloading",
+                            "phase" to phase,
                             "logLine" to line,
                         )
                     )
                 }
 
                 val resolvedOutputPath = resolveDownloadedFilePath(response.out, outputTemplate)
+                val resolvedOutputPaths = resolveAllDownloadedFilePaths(response.out, outputTemplate)
 
                 emitProgress(
                     mapOf(
@@ -215,6 +263,7 @@ class YtDlpChannelHandler(
                         "stdout" to response.out,
                         "stderr" to response.err,
                         "outputPath" to resolvedOutputPath,
+                        "outputPaths" to resolvedOutputPaths,
                     )
                 )
             } catch (_: YoutubeDL.CanceledException) {
@@ -281,6 +330,28 @@ class YtDlpChannelHandler(
             }
             ?.maxByOrNull { it.lastModified() }
             ?.absolutePath
+    }
+
+    private fun resolveAllDownloadedFilePaths(stdout: String, outputTemplate: String): List<String> {
+        val resolved = LinkedHashSet<String>()
+        for (line in stdout.lineSequence()) {
+            val trimmed = line.trim()
+            if (trimmed.isNotEmpty() && File(trimmed).isFile) {
+                resolved.add(File(trimmed).absolutePath)
+            }
+        }
+        val parentDir = File(outputTemplate).parentFile
+        parentDir
+            ?.listFiles()
+            ?.filter { file ->
+                file.isFile &&
+                    !file.name.endsWith(".part") &&
+                    !file.name.endsWith(".ytdl") &&
+                    !file.name.endsWith(".temp")
+            }
+            ?.sortedBy { it.name.lowercase() }
+            ?.forEach { file -> resolved.add(file.absolutePath) }
+        return resolved.toList()
     }
 
     private fun applyCookiesAndJsRuntime(request: YoutubeDLRequest, cookiesPath: String?) {
