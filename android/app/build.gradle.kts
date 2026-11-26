@@ -19,7 +19,7 @@ android {
         applicationId = "io.github.fyou00.klipfetch"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        minSdk = 24
         targetSdk = flutter.targetSdkVersion
         // Uses the version code from pubspec.yaml. When using split APKs, 1000 * ABI_VERSION
         // is added automatically by Flutter. (https://developer.android.com/studio/build/configure-apk-splits#configure-APK-versions)
@@ -27,6 +27,16 @@ android {
         // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+        }
+    }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
     }
 
     buildTypes {
@@ -46,4 +56,12 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    val youtubedlAndroidVersion = "0.18.1"
+    implementation("io.github.junkfood02.youtubedl-android:library:$youtubedlAndroidVersion")
+    implementation("io.github.junkfood02.youtubedl-android:ffmpeg:$youtubedlAndroidVersion")
+    implementation("io.github.junkfood02.youtubedl-android:aria2c:$youtubedlAndroidVersion")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 }
