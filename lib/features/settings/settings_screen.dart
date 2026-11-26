@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/app_settings.dart';
 import '../../state/providers.dart';
+import '../auth/auth_browser_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key, this.skipVersionProbe = false});
@@ -72,6 +73,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
+    final cookieStatuses = ref.watch(cookieStatusesProvider);
+    final connectedCount =
+        cookieStatuses.values.where((status) => status.isConnected).length;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
 
@@ -111,6 +115,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 16),
+          _SectionTitle(title: 'Accounts & Cookies', theme: theme),
+          Card(
+            child: ListTile(
+              key: const Key('settings_accounts_tile'),
+              leading: const Icon(Icons.cookie_outlined),
+              title: const Text('Accounts & Cookies'),
+              subtitle: Text(
+                '$connectedCount/3 platforms connected · Manage logins',
+              ),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const AuthBrowserScreen(),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
           _SectionTitle(title: 'Downloads', theme: theme),
           Card(
             child: Padding(
@@ -134,6 +158,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         },
                       );
                     }).toList(),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Default Video Container',
+                    style: theme.textTheme.labelLarge,
+                  ),
+                  const SizedBox(height: 8),
+                  SegmentedButton<String>(
+                    segments: AppSettings.supportedVideoContainers
+                        .map(
+                          (container) => ButtonSegment<String>(
+                            value: container,
+                            label: Text(container.toUpperCase()),
+                          ),
+                        )
+                        .toList(),
+                    selected: {settings.defaultVideoContainer},
+                    onSelectionChanged: (selection) {
+                      if (selection.isNotEmpty) {
+                        ref
+                            .read(settingsProvider.notifier)
+                            .setDefaultVideoContainer(selection.first);
+                      }
+                    },
                   ),
                   const SizedBox(height: 16),
                   Text('Default Audio Format', style: theme.textTheme.labelLarge),
@@ -186,6 +234,61 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       ref.read(settingsProvider.notifier).setAutoRetry(value);
                     },
                   ),
+                  SwitchListTile(
+                    key: const Key('settings_subtitles_switch'),
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Download subtitles (SRT/VTT)'),
+                    subtitle: Text(
+                      'Preferred languages: ${settings.subtitleLanguages}',
+                    ),
+                    value: settings.downloadSubtitles,
+                    onChanged: (value) {
+                      ref
+                          .read(settingsProvider.notifier)
+                          .setDownloadSubtitles(value);
+                    },
+                  ),
+                  if (settings.downloadSubtitles)
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Embed subtitles into video'),
+                      subtitle: const Text(
+                        'Muxes SRT/VTT tracks into MP4/MKV via FFmpeg',
+                      ),
+                      value: settings.embedSubtitles,
+                      onChanged: (value) {
+                        ref
+                            .read(settingsProvider.notifier)
+                            .setEmbedSubtitles(value);
+                      },
+                    ),
+                  SwitchListTile(
+                    key: const Key('settings_sponsorblock_switch'),
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('SponsorBlock skip (YouTube)'),
+                    subtitle: const Text(
+                      'Removes sponsor, self-promo, and interaction segments',
+                    ),
+                    value: settings.sponsorBlockEnabled,
+                    onChanged: (value) {
+                      ref
+                          .read(settingsProvider.notifier)
+                          .setSponsorBlockEnabled(value);
+                    },
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Include TikTok slideshow audio'),
+                    subtitle: const Text(
+                      'Saves background music alongside photo slideshows',
+                    ),
+                    value: settings.tiktokSlideshowIncludeAudio,
+                    onChanged: (value) {
+                      ref
+                          .read(settingsProvider.notifier)
+                          .setTiktokSlideshowIncludeAudio(value);
+                    },
+                  ),
                 ],
               ),
             ),
@@ -207,6 +310,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           'Installed version: ${_ytDlpVersion ?? "Not initialized"}',
                           style: theme.textTheme.bodyMedium,
                         ),
+                      ),
+                      IconButton(
+                        tooltip: 'Refresh version',
+                        onPressed: _loadYtDlpVersion,
+                        icon: const Icon(Icons.refresh_rounded, size: 20),
                       ),
                     ],
                   ),

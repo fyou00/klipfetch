@@ -242,6 +242,7 @@ class _QueueItemCard extends StatelessWidget {
       if (bytesLabel.isNotEmpty) bytesLabel,
       if (item.qualityLabel != null && item.qualityLabel!.isNotEmpty)
         item.qualityLabel!,
+      if (item.exportedCount > 1) '${item.exportedCount} files',
     ].join(' · ');
 
     return Card(

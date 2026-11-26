@@ -51,6 +51,12 @@ class _KlipFetchAppState extends ConsumerState<KlipFetchApp> {
       // Queue storage unavailable before initCore succeeds.
     }
 
+    try {
+      await ref.read(cookieStatusesProvider.notifier).refresh();
+    } catch (_) {
+      // Cookie store unavailable before initCore succeeds.
+    }
+
     final platformClient = ref.read(androidPlatformProvider);
     _sharedSub = platformClient.sharedTextStream.listen((text) {
       unawaited(_handleSharedText(text));
