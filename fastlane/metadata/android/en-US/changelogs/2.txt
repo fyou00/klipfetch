@@ -1,0 +1,4 @@
+Release v0.1.1:
+- Locked KlipFetch to Light Mode with an explicit lock notice beneath the inert Appearance switch in Settings.
+- Restyled the Light Mode palette (Warm Daylight Paper & Burnt Vermilion) so all badges, pills, buttons, and outlines pass WCAG AA contrast.
+- Flattened the playlist picker, removed duplicate status labels/middle-dots, normalized Best casing, and aligned the Android WebView login toolbar with Light Mode.

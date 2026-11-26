@@ -1,0 +1,4 @@
+Rilis v0.1.1:
+- Mengunci aplikasi ke Light Mode dengan teks penjelas di bawah tombol tema di Settings.
+- Memperbarui palet Light Mode (Warm Daylight Paper & Burnt Vermilion) agar seluruh badge platform, status, tombol, dan garis batas lolos kontras WCAG AA.
+- Merapikan daftar playlist, menghilangkan label status ganda dan pemisah titik tengah, menyeragamkan label Best, serta menyelaraskan WebView login Android ke Light Mode.

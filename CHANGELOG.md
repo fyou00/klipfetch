@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-26
+
+### Changed
+- Locked KlipFetch to Light Mode while keeping the Settings Appearance selector (`System` / `Dark` / `Light`) visible as an inert control with an explicit locked-mode notice.
+- Restyled the Light Mode palette to **Warm Daylight Paper + Burnt Vermilion** (`#F5F2EC` scaffold, `#FFFCF7` cards, `#BF3909` primary accent, unified `#8A8175` control outlines) so all platform (`TikTok`, `Instagram`, `YouTube`), engine (`Rust Core`, `yt-dlp`, `yt-dlp fallback`), and status (`Connected`, `Incomplete`, `Completed`) badges pass WCAG 2.1 AA contrast (`>= 4.94:1` text, `3.75:1` interactive outlines).
+- Removed card-in-card playlist border in favor of a flat Material tonal inset, eliminated redundant download status labels and middle-dot metadata concatenation, normalized `Best` quality casing across screens, and added `FontFeature.tabularFigures()` for stable progress/metric alignment.
+- Aligned Android native `AuthWebViewActivity` (toolbar, light status bar icons, 1dp divider, `Save Session` button, session detection status colors) and `values-night/styles.xml` with Light Mode.
+- Upgraded `.github/workflows/release.yml` with early fail-fast `keytool` keystore verification and automatic release notes extracted from `CHANGELOG.md`.
+
+## [0.1.0] - 2026-11-26
+
 ### Added
 - GNU General Public License v3.0 (`LICENSE`) and tailored `.gitignore` covering Flutter, Android NDK/signing secrets, Rust FFI artifacts, and local cookie/database files.
 - Android-only Flutter application scaffold (`klipfetch`, package `io.github.fyou00.klipfetch`) targeting Flutter 3.47.9 / Dart 3.13.7, AGP 9.1.0, and Kotlin 2.4.0.
@@ -35,4 +46,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated `YtDlpService` to return resolved `outputPath` from `YtDlpChannelHandler.kt` and replaced the starter template in `lib/main.dart` with `KlipFetchApp`.
 - Updated `UrlRouterService`, `YtDlpChannelHandler.kt`, and `DownloadQueueNotifier` to propagate shared `cookies.txt`, muxing phase telemetry, and multi-file staging directory exports.
 
-[Unreleased]: https://github.com/fyou00/klipfetch/commits/main
+[Unreleased]: https://github.com/fyou00/klipfetch/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/fyou00/klipfetch/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/fyou00/klipfetch/releases/tag/v0.1.0
