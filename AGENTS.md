@@ -50,7 +50,7 @@ This document defines mandatory project boundaries, architectural invariants, li
 5. **Non-Blocking UI Isolate**:
    - Heavy network parsing, file I/O, SQLite WAL queries, and FFmpeg muxing MUST run on the Rust Tokio runtime or Kotlin background dispatchers — never on the Dart UI isolate.
 6. **Cookie Handling**:
-   - Capture `HttpOnly` cookies using `flutter_inappwebview`'s `CookieManager` and store them only in app-private storage. Never log raw cookie tokens (`sessionid`, `SAPISID`, etc.) or `cookies.txt` contents in console logs or error reports.
+   - Capture `HttpOnly` cookies using native Android `WebView` + `CookieManager` (`AuthWebViewActivity.kt`) and store them only in app-private storage (`cookies/cookies.txt`). Never log raw cookie tokens (`sessionid`, `SAPISID`, etc.) or `cookies.txt` contents in console logs or error reports.
 
 ---
 

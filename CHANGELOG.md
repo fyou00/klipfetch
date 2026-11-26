@@ -21,9 +21,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Phase 2 Android-native infrastructure: `DownloadForegroundService.kt` (`FOREGROUND_SERVICE_DATA_SYNC` + active-task `WAKE_LOCK`), `MediaStoreExporter.kt` (scoped storage export into `Downloads/KlipFetch/{TikTok,Instagram,YouTube}/`), `AndroidPlatformHandler.kt` (`ACTION_SEND` Share Sheet bridge, `POST_NOTIFICATIONS` request flow, `FileProvider` open/share), and `YtDlpChannelHandler.kt` `outputPath` resolution (`--no-simulate --print after_move:filepath`).
 - Phase 2 Riverpod (`flutter_riverpod: ^2.6.1`) state layer (`DownloadQueueNotifier`, `SettingsRepository`, `QueueRepository`, `UrlExtractor`, `AndroidPlatformService`, `AppSettings`, `QueueItem`) with persistent SQLite queue synchronization.
 - Phase 2 Material 3 Android UI (`AppTheme`, `PlatformBadge`, **Home**, **Downloads**, **Settings** screens, `KlipFetchApp`) and Phase 2 unit/widget test suites (`test/url_extractor_test.dart`, `test/download_queue_controller_test.dart`, `test/widget_test.dart`).
+- Phase 3 in-app cookie authentication (`AuthWebViewActivity.kt` Android `WebView` + `CookieManager` Netscape `cookies.txt` capture, `AuthBrowserScreen`, `CookieAuthService`, `NetscapeCookieCodec`, Rust `CookieDomainStatus` / `get_shared_cookies_path` FFI) with per-platform **Sign In**, **Test**, **Import**, and **Clear** controls for Instagram, TikTok, and YouTube.
+- Phase 3 platform refinements: Instagram Story/Highlight `yt-dlp` cookie routing, audio fallback, and 350 ms carousel pacing; TikTok slideshow non-`.jpeg` fallback and background audio toggle; YouTube 4K/2K/1080p/720p/480p upper bounds, MP4/MKV container selector, selective Playlist item picker, SponsorBlock removal, and SRT/VTT subtitle download/embedding.
+- Batch `MediaStoreExporter.exportDirectory` support for multi-file carousels, slideshows, and subtitle sidecars plus Phase 3 unit and widget tests (`test/netscape_cookie_codec_test.dart`, `test/ytdlp_parser_test.dart`, expanded router/queue/widget tests).
 
 ### Changed
 - Pinned Flutter SDK `3.47.9` and upgraded `.github/workflows/ci.yml` to run `libreget-core` and `klipfetch_ffi` Rust tests, cross-compile `libklipfetch_ffi.so` (`arm64-v8a`) via `cargo-ndk`, run Flutter checks, and verify the shared library inside the built debug APK.
 - Updated `YtDlpService` to return resolved `outputPath` from `YtDlpChannelHandler.kt` and replaced the starter template in `lib/main.dart` with `KlipFetchApp`.
+- Updated `UrlRouterService`, `YtDlpChannelHandler.kt`, and `DownloadQueueNotifier` to propagate shared `cookies.txt`, muxing phase telemetry, and multi-file staging directory exports.
 
 [Unreleased]: https://github.com/fyou00/klipfetch/commits/main

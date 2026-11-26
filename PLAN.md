@@ -175,13 +175,22 @@ Deliver a responsive Material 3 Android experience with Share Sheet integration,
 
 ## Phase 3 — Platform-Specific Auth, Edge Cases & Polish
 
+### Status
+- [x] **3.1 In-App Auth Browser & Netscape Cookie Store**: Built `AuthWebViewActivity.kt` (Android `WebView` with Chrome Mobile User-Agent free of `; wv`, `CookieManager` capture of `HttpOnly` session cookies, Netscape `cookies.txt` serialization without cookie logging), `CookieAuthService`, `NetscapeCookieCodec`, Rust `CookieDomainStatus` / `get_shared_cookies_path` FFI helpers, and `AuthBrowserScreen` with **Sign In**, **Test**, **Import**, and **Clear** actions for **Instagram**, **TikTok**, and **YouTube**. *(Architecture note: implemented natively in `AuthWebViewActivity.kt` using stock Android `WebView` + `CookieManager` instead of `flutter_inappwebview` to avoid legacy plugin Gradle incompatibilities with AGP `9.1.0` + Kotlin `2.4.0`.)*
+- [x] **3.2 Platform-Specific Refinements & Multi-File Export**:
+  - Instagram: Routed `/stories/...` and `/stories/highlights/...` cleanly to `yt-dlp` with user cookies, added audio-mode `FALLBACK_YTDLP` handoff, 350 ms carousel pacing, and multi-file staging directory `MediaStoreExporter.exportDirectory` export.
+  - TikTok: Added non-`.jpeg` slideshow URL fallback, slideshow music track detection (`slideshow_audio`), slideshow background audio toggle (`photos_with_audio`), and audio extraction routing.
+  - YouTube: Added 2160p/4K, 1440p/2K, 1080p, 720p, and 480p upper-bound quality options, MP4/MKV container selector, selective `--flat-playlist` / Playlist item picker, SponsorBlock removal (`--sponsorblock-remove`), SRT/VTT subtitle download & FFmpeg embed toggles (`--write-subs`, `--embed-subs`), and `[Merger]`/`[EmbedSubtitle]`/`[SponsorBlock]` muxing phase telemetry.
+  - Tests: Passed `libreget-core` (`157` tests), `klipfetch_ffi` (`3` tests), `flutter analyze` (`No issues found!`), and `flutter test` (`34` tests).
+- [ ] **Manual Live-Account Physical Device Verification**: Verify Instagram Story/private post capture, watermark-free TikTok slideshow & carousel export, and signed-in 4K YouTube DASH muxing on physical Android hardware.
+
 ### Goals
 Handle logged-in content, stories, adaptive 4K muxing, subtitles, and reliability edge cases across all 3 target platforms.
 
 ### Tasks
 
 #### 3.1 In-App Auth Browser (`flutter_inappwebview` 6.x)
-- Build `AuthBrowserScreen` with dedicated login shortcuts for **Instagram**, **TikTok**, and **YouTube**.
+- Build `AuthBrowserScreen` with dedicated login shortcuts for **Instagram**, **TikTok**, and **YouTube**. *(Implemented natively via `AuthWebViewActivity.kt` + Android `WebView`/`CookieManager` alongside `AuthBrowserScreen` in Dart for AGP 9.1.0 compatibility.)*
 - Use `CookieManager.instance().getCookies(url)` to capture **`HttpOnly`** session cookies (e.g., Instagram `sessionid`, `ds_user_id`, `csrftoken`) and serialize them in Netscape `cookies.txt` format inside app-private storage for both `libreget-core` and `yt-dlp`.
 - Provide per-platform "Test Session" and "Clear Cookies" actions in Settings.
 
