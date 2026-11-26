@@ -1,0 +1,26 @@
+[package]
+name = "klipfetch_ffi"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0"
+description = "Flutter Rust Bridge FFI layer for KlipFetch mobile core and SQLite download queue."
+
+[lib]
+name = "klipfetch_ffi"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+flutter_rust_bridge = "=2.13.0"
+libreget-core = { path = "../third_party/libreget-core", default-features = false, features = ["mobile"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "fs"] }
+tokio-util = { version = "0.7", features = ["rt"] }
+rusqlite = { version = "0.32", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+tracing = "0.1"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
