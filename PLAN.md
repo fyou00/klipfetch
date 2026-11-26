@@ -132,13 +132,20 @@ Create `android/app/src/main/kotlin/io/github/fyou00/klipfetch/YtDlpChannelHandl
 
 ## Phase 2 — Android-Native UX & Resilient Background Queue
 
+### Status
+- [x] **2.1 State Management & Navigation**: Added `flutter_riverpod` (`^2.6.1`) with Riverpod `Notifier` controllers (`DownloadQueueNotifier`, `SettingsRepository`, `QueueRepository`, `UrlExtractor`, `AndroidPlatformService`) and Material 3 screens (**Home**, **Downloads**, **Settings** inside `KlipFetchApp`). *(Architecture note: implemented native Share Sheet, permission prompts, and Material 3 `NavigationBar` navigation directly via `AndroidPlatformHandler.kt` and Flutter widgets instead of adding `go_router`, `receive_sharing_intent`, `permission_handler`, or `device_info_plus` to avoid legacy plugin incompatibilities with AGP `9.1.0` + Kotlin `2.4.0`.)*
+- [x] **2.2 Android Share Sheet & Deep Link Receiver**: Wired `ACTION_SEND` (`text/plain`) intent handling in `MainActivity.kt` and `AndroidPlatformHandler.kt` forwarding shared YouTube, TikTok, and Instagram URLs into the Flutter Home flow.
+- [x] **2.3 Foreground Service & Scoped Storage Export**: Implemented `DownloadForegroundService.kt` (`FOREGROUND_SERVICE_DATA_SYNC` + active-task partial `WAKE_LOCK`), `MediaStoreExporter.kt` (staging export to public `Downloads/KlipFetch/{TikTok,Instagram,YouTube}/`), `FileProvider` open/share helpers, and `YtDlpChannelHandler.kt` `outputPath` resolution (`--no-simulate --print after_move:filepath`).
+- [x] **2.4 Persistent SQLite Queue & Automated Tests**: Connected Dart queue orchestration to Rust SQLite queue storage via `QueueRepository` and added unit + widget tests (`url_extractor_test.dart`, `download_queue_controller_test.dart`, `widget_test.dart`; `flutter analyze` clean and `18` Flutter tests passing).
+- [ ] **Manual Physical Device E2E Smoke Verification**: Verify Share Sheet launch from stock YouTube/TikTok/Instagram apps, locked-screen >100 MB foreground transfer, and public Gallery/Files playback on physical Android hardware.
+
 ### Goals
 Deliver a responsive Material 3 Android experience with Share Sheet integration, persistent background downloads, and MediaStore gallery export.
 
 ### Tasks
 
 #### 2.1 State Management & Navigation (`lib/`)
-- Add `flutter_riverpod`, `go_router`, `receive_sharing_intent` (`^1.8.1`), `path_provider`, `permission_handler`, and `device_info_plus`.
+- Add `flutter_riverpod`, `go_router`, `receive_sharing_intent` (`^1.8.1`), `path_provider`, `permission_handler`, and `device_info_plus`. *(Deviated cleanly in implementation: kept dependency graph lean with `flutter_riverpod: ^2.6.1`, `path_provider`, and native `AndroidPlatformHandler.kt`.)*
 - Build core screens:
   - **Home (`features/home/`)**: Smart paste box, clipboard link detection banner, rich preview card (thumbnail, author, duration), resolution/format selector (Video MP4/MKV vs Audio M4A/MP3/Opus), subtitle toggle.
   - **Downloads (`features/downloads/`)**: Active & completed tabs, real-time speed/ETA/phase telemetry (`Connecting`, `Downloading`, `Muxing`, `Saving to Downloads`), pause/resume/retry/cancel controls, open/share finished media.
