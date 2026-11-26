@@ -53,6 +53,12 @@ final stagingDirProvider = Provider<Future<String> Function()>((ref) {
   };
 });
 
+final ensureDirExistsProvider = Provider<Future<void> Function(String path)>((ref) {
+  return (path) async {
+    await Directory(path).create(recursive: true);
+  };
+});
+
 final retryDelayProvider = Provider<Duration Function(int attempt)>((ref) {
   return (attempt) => Duration(seconds: 2 * attempt);
 });
@@ -501,7 +507,7 @@ class DownloadQueueNotifier extends Notifier<List<QueueItem>> {
 
       final stagingRoot = await ref.read(stagingDirProvider)();
       final taskStagingDir = '$stagingRoot/$taskId';
-      await Directory(taskStagingDir).create(recursive: true);
+      await ref.read(ensureDirExistsProvider)(taskStagingDir);
 
       final request = DownloadRequest(
         taskId: taskId,
