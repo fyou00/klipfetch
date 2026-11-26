@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.webkit.CookieManager
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -16,6 +17,8 @@ import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -29,6 +32,7 @@ class AndroidPlatformHandler(
 ) : MethodChannel.MethodCallHandler, EventChannel.StreamHandler {
 
     companion object {
+        private const val TAG = "KlipFetchPlatform"
         const val METHOD_CHANNEL = "io.github.fyou00.klipfetch/platform"
         const val EVENT_CHANNEL = "io.github.fyou00.klipfetch/platform_events"
         private const val REQUEST_POST_NOTIFICATIONS = 4201
@@ -37,7 +41,10 @@ class AndroidPlatformHandler(
 
     private val appContext = activity.applicationContext
     private val mainHandler = Handler(Looper.getMainLooper())
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
+        Log.e(TAG, "Unhandled platform coroutine error: ${throwable.javaClass.simpleName}", throwable)
+    }
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + exceptionHandler)
 
     private val methodChannel = MethodChannel(messenger, METHOD_CHANNEL)
     private val eventChannel = EventChannel(messenger, EVENT_CHANNEL)
@@ -195,15 +202,20 @@ class AndroidPlatformHandler(
         val activeCount = call.argument<Int>("activeCount") ?: 1
         val statusText = call.argument<String>("statusText")
 
-        DownloadForegroundService.startOrUpdate(
-            context = appContext,
-            taskId = taskId,
-            title = title,
-            progress = progress,
-            activeCount = activeCount,
-            statusText = statusText,
-        )
-        result.success(true)
+        try {
+            DownloadForegroundService.startOrUpdate(
+                context = appContext,
+                taskId = taskId,
+                title = title,
+                progress = progress,
+                activeCount = activeCount,
+                statusText = statusText,
+            )
+            result.success(true)
+        } catch (t: Throwable) {
+            Log.w(TAG, "Foreground service start/update rejected: ${t.javaClass.simpleName}")
+            result.success(false)
+        }
     }
 
     private fun handleExportToMediaStore(
@@ -234,11 +246,13 @@ class AndroidPlatformHandler(
                         )
                     )
                 }
-            } catch (e: Exception) {
+            } catch (e: CancellationException) {
+                throw e
+            } catch (t: Throwable) {
                 mainHandler.post {
                     result.error(
                         "MEDIASTORE_EXPORT_ERROR",
-                        e.message ?: "Failed to export file to Downloads",
+                        t.message ?: "Failed to export file to Downloads",
                         null,
                     )
                 }
@@ -276,11 +290,13 @@ class AndroidPlatformHandler(
                         )
                     )
                 }
-            } catch (e: Exception) {
+            } catch (e: CancellationException) {
+                throw e
+            } catch (t: Throwable) {
                 mainHandler.post {
                     result.error(
                         "MEDIASTORE_BATCH_EXPORT_ERROR",
-                        e.message ?: "Failed to export staging directory to Downloads",
+                        t.message ?: "Failed to export staging directory to Downloads",
                         null,
                     )
                 }

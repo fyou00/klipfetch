@@ -1,0 +1,4 @@
+Hotfix v0.1.2:
+- Fixed immediate startup force-close crash in release APKs caused by R8 stripping Apache Commons Compress reflection classes required by youtubedl-android.
+- Added Throwable & CoroutineExceptionHandler guards in Kotlin method channels and safer foreground-service fallback on Android 14/15.
+- Fixed QuickJS binary lookup (libqjs.so / libquickjs.so) and verified R8 keep rules in release CI builds.

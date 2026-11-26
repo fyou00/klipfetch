@@ -24,5 +24,25 @@
 
 -keep class com.fasterxml.jackson.** { *; }
 -dontwarn com.fasterxml.jackson.**
+
+# Preserve reflection & JNI metadata under AGP 9 R8 full mode
+-keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod
+-keepclasseswithmembernames class * {
+    native <methods>;
+}
+
+# Apache Commons Compress / IO & XZ (used reflectively by youtubedl-android ZipUtils & ExtraFieldUtils)
+-keep class org.apache.commons.compress.** { *; }
+-keep class org.apache.commons.io.** { *; }
+-keep class org.tukaani.xz.** { *; }
 -dontwarn org.apache.commons.**
 -dontwarn org.tukaani.xz.**
+
+# Dart JNI / path_provider_android 2.3+ bridge classes
+-keep class com.github.dart_lang.jni.** { *; }
+-keep class com.github.dart_lang.jni_flutter.** { *; }
+
+# AndroidX Startup initializers
+-keep class * extends androidx.startup.Initializer {
+    public <init>();
+}

@@ -160,6 +160,22 @@ jobs:
           unzip -l "dist/klipfetch-${TAG}-arm64-v8a.apk" | grep "lib/arm64-v8a/libklipfetch_ffi.so"
           unzip -l "dist/klipfetch-${TAG}-armeabi-v7a.apk" | grep "lib/armeabi-v7a/libklipfetch_ffi.so"
 
+          TAG="$TAG" python3 - <<'PY'
+          import os, zipfile
+
+          apk_path = f"dist/klipfetch-{os.environ['TAG']}-arm64-v8a.apk"
+          with zipfile.ZipFile(apk_path) as zf:
+              dex = zf.read("classes.dex")
+
+          required = [
+              b"Lorg/apache/commons/compress/archivers/zip/AsiExtraField;",
+              b"Lorg/apache/commons/compress/archivers/zip/ExtraFieldUtils;",
+          ]
+          missing = [sym.decode() for sym in required if sym not in dex]
+          assert not missing, f"R8 stripped required commons-compress symbols: {missing}"
+          print("Verified R8 preserved Apache Commons Compress zip reflection classes in classes.dex.")
+          PY
+
           (
             cd dist
             sha256sum "klipfetch-${TAG}-arm64-v8a.apk" "klipfetch-${TAG}-armeabi-v7a.apk" > SHA256SUMS.txt

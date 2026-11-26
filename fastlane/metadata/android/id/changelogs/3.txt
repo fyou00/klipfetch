@@ -1,0 +1,4 @@
+Hotfix v0.1.2:
+- Memperbaiki crash force-close saat aplikasi dibuka pada APK rilis karena kelas Apache Commons Compress untuk inisialisasi youtubedl-android ikut terhapus oleh R8.
+- Menambahkan proteksi Throwable & CoroutineExceptionHandler di channel Kotlin serta penjagaan foreground service di Android 14/15.
+- Memperbaiki pencarian binary QuickJS (libqjs.so / libquickjs.so) dan menambah verifikasi R8 otomatis saat build rilis.

@@ -3,6 +3,7 @@ package io.github.fyou00.klipfetch
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import com.yausername.aria2c.Aria2c
 import com.yausername.ffmpeg.FFmpeg
 import com.yausername.youtubedl_android.YoutubeDL
@@ -11,6 +12,8 @@ import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -24,13 +27,17 @@ class YtDlpChannelHandler(
 ) : MethodChannel.MethodCallHandler, EventChannel.StreamHandler {
 
     companion object {
+        private const val TAG = "KlipFetchYtDlp"
         const val METHOD_CHANNEL = "io.github.fyou00.klipfetch/ytdlp"
         const val PROGRESS_CHANNEL = "io.github.fyou00.klipfetch/ytdlp_progress"
     }
 
     private val appContext = context.applicationContext
     private val mainHandler = Handler(Looper.getMainLooper())
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
+        Log.e(TAG, "Unhandled yt-dlp coroutine error: ${throwable.javaClass.simpleName}", throwable)
+    }
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + exceptionHandler)
 
     private val methodChannel = MethodChannel(messenger, METHOD_CHANNEL)
     private val progressChannel = EventChannel(messenger, PROGRESS_CHANNEL)
@@ -79,8 +86,10 @@ class YtDlpChannelHandler(
                 ensureInitialized()
                 val version = YoutubeDL.getInstance().version(appContext)
                 postSuccess(result, version)
-            } catch (e: Exception) {
-                postError(result, "YTDLP_INIT_ERROR", e.message ?: "Failed to initialize yt-dlp", null)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (t: Throwable) {
+                postError(result, "YTDLP_INIT_ERROR", t.message ?: "Failed to initialize yt-dlp", null)
             }
         }
     }
@@ -90,8 +99,10 @@ class YtDlpChannelHandler(
             try {
                 ensureInitialized()
                 postSuccess(result, YoutubeDL.getInstance().version(appContext))
-            } catch (e: Exception) {
-                postError(result, "YTDLP_VERSION_ERROR", e.message ?: "Failed to read yt-dlp version", null)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (t: Throwable) {
+                postError(result, "YTDLP_VERSION_ERROR", t.message ?: "Failed to read yt-dlp version", null)
             }
         }
     }
@@ -108,8 +119,10 @@ class YtDlpChannelHandler(
                 ensureInitialized()
                 val status = YoutubeDL.getInstance().updateYoutubeDL(appContext, channel)
                 postSuccess(result, status?.name ?: "UNKNOWN")
-            } catch (e: Exception) {
-                postError(result, "YTDLP_UPDATE_ERROR", e.message ?: "Failed to update yt-dlp", null)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (t: Throwable) {
+                postError(result, "YTDLP_UPDATE_ERROR", t.message ?: "Failed to update yt-dlp", null)
             }
         }
     }
@@ -138,8 +151,10 @@ class YtDlpChannelHandler(
                 applyCookiesAndJsRuntime(request, cookiesPath)
                 val response = YoutubeDL.getInstance().execute(request, null, null)
                 postSuccess(result, response.out)
-            } catch (e: Exception) {
-                postError(result, "YTDLP_INFO_ERROR", e.message ?: "Failed to extract media info", null)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (t: Throwable) {
+                postError(result, "YTDLP_INFO_ERROR", t.message ?: "Failed to extract media info", null)
             }
         }
     }
@@ -276,16 +291,18 @@ class YtDlpChannelHandler(
                     )
                 )
                 postError(result, "CANCELLED", "Download cancelled", null)
-            } catch (e: Exception) {
+            } catch (e: CancellationException) {
+                throw e
+            } catch (t: Throwable) {
                 emitProgress(
                     mapOf(
                         "taskId" to taskId,
                         "percent" to 0.0,
                         "phase" to "failed",
-                        "logLine" to (e.message ?: "Download failed"),
+                        "logLine" to (t.message ?: "Download failed"),
                     )
                 )
-                postError(result, "YTDLP_DOWNLOAD_ERROR", e.message ?: "Download failed", null)
+                postError(result, "YTDLP_DOWNLOAD_ERROR", t.message ?: "Download failed", null)
             }
         }
     }
@@ -305,7 +322,11 @@ class YtDlpChannelHandler(
         if (initialized) return
         YoutubeDL.getInstance().init(appContext)
         FFmpeg.getInstance().init(appContext)
-        Aria2c.getInstance().init(appContext)
+        try {
+            Aria2c.getInstance().init(appContext)
+        } catch (t: Throwable) {
+            Log.w(TAG, "Optional aria2c init failed: ${t.javaClass.simpleName}")
+        }
         initialized = true
     }
 
@@ -358,8 +379,10 @@ class YtDlpChannelHandler(
         if (!cookiesPath.isNullOrBlank() && File(cookiesPath).exists()) {
             request.addOption("--cookies", cookiesPath)
         }
-        val quickJs = File(appContext.applicationInfo.nativeLibraryDir, "libquickjs.so")
-        if (quickJs.exists()) {
+        val nativeDir = appContext.applicationInfo.nativeLibraryDir
+        val quickJs = File(nativeDir, "libqjs.so").takeIf { it.exists() }
+            ?: File(nativeDir, "libquickjs.so").takeIf { it.exists() }
+        if (quickJs != null) {
             request.addOption("--js-runtimes", "quickjs:${quickJs.absolutePath}")
         }
     }

@@ -441,7 +441,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'KlipFetch v0.1.1',
+                    'KlipFetch v0.1.2',
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                     ),

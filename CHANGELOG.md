@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-11-27
+
+### Fixed
+- Fixed immediate startup force-close crash in R8-minified Android release APKs caused by R8 stripping Apache Commons Compress (`org.apache.commons.compress.*`) classes used reflectively by `youtubedl-android` during initialization.
+- Hardened Kotlin coroutine method-channel handlers (`YtDlpChannelHandler`, `AndroidPlatformHandler`) to catch `Throwable` with `CoroutineExceptionHandler` safety nets and defensive Android 14/15 foreground-service guards.
+- Fixed QuickJS-NG native binary path resolution (`libqjs.so` with fallback to `libquickjs.so`) for YouTube JavaScript runtime extraction.
+- Added automated `classes.dex` R8 keep-rule verification to `.github/workflows/release.yml`.
+
 ## [0.1.1] - 2026-11-26
 
 ### Changed
@@ -46,6 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated `YtDlpService` to return resolved `outputPath` from `YtDlpChannelHandler.kt` and replaced the starter template in `lib/main.dart` with `KlipFetchApp`.
 - Updated `UrlRouterService`, `YtDlpChannelHandler.kt`, and `DownloadQueueNotifier` to propagate shared `cookies.txt`, muxing phase telemetry, and multi-file staging directory exports.
 
-[Unreleased]: https://github.com/fyou00/klipfetch/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/fyou00/klipfetch/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/fyou00/klipfetch/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/fyou00/klipfetch/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/fyou00/klipfetch/releases/tag/v0.1.0
