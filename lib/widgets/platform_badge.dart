@@ -17,38 +17,29 @@ class PlatformBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tone = KlipFetchTheme.platformTone(platform);
-    final icon = switch (platform) {
-      MediaPlatform.tiktok => Icons.music_note_rounded,
-      MediaPlatform.instagram => Icons.photo_camera_outlined,
-      MediaPlatform.youtube => Icons.play_arrow_rounded,
-      MediaPlatform.unsupported => Icons.block_rounded,
-    };
 
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: compact ? 8 : 10,
-        vertical: compact ? 3 : 5,
-      ),
-      decoration: BoxDecoration(
-        color: tone.fill,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: tone.border),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: compact ? 14 : 15, color: tone.ink),
-          const SizedBox(width: 5),
-          Text(
-            platform.displayName,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: tone.ink,
-            ),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 3,
+          height: compact ? 12 : 14,
+          decoration: BoxDecoration(
+            color: tone.ink,
+            borderRadius: BorderRadius.circular(1),
           ),
-        ],
-      ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          platform.displayName,
+          style: TextStyle(
+            fontFamily: KlipFetchTheme.bodyFontFamily,
+            fontSize: compact ? 12 : 13,
+            fontWeight: FontWeight.w600,
+            color: KlipFetchTheme.lightInk,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -74,20 +65,63 @@ class EngineBadge extends StatelessWidget {
       engine,
       usedFallback: usedFallback,
     );
+    final isFallback = engine == DownloadEngine.ytDlp && usedFallback;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
         color: tone.fill,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: tone.border),
+        borderRadius: BorderRadius.circular(2),
+        border: isFallback ? null : Border.all(color: tone.border),
+      ),
+      child: Text(
+        label,
+        style: isFallback
+            ? TextStyle(
+                fontFamily: KlipFetchTheme.bodyFontFamily,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: tone.ink,
+              )
+            : KlipFetchTheme.monoStyle(
+                size: 11,
+                height: 1.2,
+                color: tone.ink,
+              ),
+      ),
+    );
+  }
+}
+
+class EditorialStatusTag extends StatelessWidget {
+  const EditorialStatusTag({
+    super.key,
+    required this.label,
+    this.tone = KlipFetchTheme.neutralTone,
+    this.outlined = false,
+  });
+
+  final String label;
+  final BadgeTone tone;
+  final bool outlined;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: tone.fill,
+        borderRadius: BorderRadius.circular(2),
+        border: outlined ? Border.all(color: tone.border) : null,
       ),
       child: Text(
         label,
         style: TextStyle(
-          fontSize: 12,
+          fontFamily: KlipFetchTheme.bodyFontFamily,
+          fontSize: 11,
           fontWeight: FontWeight.w600,
           color: tone.ink,
+          fontFeatures: const [FontFeature.tabularFigures()],
         ),
       ),
     );
