@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/queue_item.dart';
 import '../../state/providers.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/editorial_controls.dart';
 import '../../widgets/platform_badge.dart';
 
 class DownloadsScreen extends ConsumerStatefulWidget {
@@ -49,115 +50,96 @@ class _DownloadsScreenState extends ConsumerState<DownloadsScreen> {
     final historyItems = items.where((e) => e.isFinished).toList();
     final displayed = _showHistory ? historyItems : activeItems;
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
 
     return SafeArea(
       child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Downloads',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                if (_showHistory && historyItems.isNotEmpty)
-                  TextButton.icon(
+          EditorialMasthead(
+            title: 'Downloads',
+            trailing: (_showHistory && historyItems.isNotEmpty)
+                ? TextButton(
                     key: const Key('downloads_clear_history_button'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: KlipFetchTheme.lightError,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                    ),
                     onPressed: () {
                       ref.read(downloadQueueProvider.notifier).clearFinished();
                     },
-                    icon: const Icon(Icons.delete_sweep_outlined, size: 18),
-                    label: const Text('Clear'),
-                  ),
-              ],
-            ),
+                    child: const Text('Clear'),
+                  )
+                : null,
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            child: SizedBox(
-              width: double.infinity,
-              child: SegmentedButton<bool>(
-                segments: [
-                  ButtonSegment<bool>(
-                    value: false,
-                    label: Text(
-                      'Active (${activeItems.length})',
-                      style: const TextStyle(
-                        fontFeatures: [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                    icon: const Icon(Icons.downloading_rounded),
-                  ),
-                  ButtonSegment<bool>(
-                    value: true,
-                    label: Text(
-                      'History (${historyItems.length})',
-                      style: const TextStyle(
-                        fontFeatures: [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                    icon: const Icon(Icons.history_rounded),
-                  ),
-                ],
-                selected: {_showHistory},
-                onSelectionChanged: (selection) {
-                  if (selection.isNotEmpty) {
-                    setState(() {
-                      _showHistory = selection.first;
-                    });
-                  }
-                },
-              ),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+            child: EditorialSegmentedControl<bool>(
+              tabular: true,
+              options: [
+                EditorialSegmentOption(
+                  value: false,
+                  label: 'Active (${activeItems.length})',
+                ),
+                EditorialSegmentOption(
+                  value: true,
+                  label: 'History (${historyItems.length})',
+                ),
+              ],
+              selected: _showHistory,
+              onSelected: (value) {
+                setState(() {
+                  _showHistory = value;
+                });
+              },
             ),
           ),
           Expanded(
             child: displayed.isEmpty
                 ? Center(
                     child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            _showHistory
-                                ? Icons.inventory_2_outlined
-                                : Icons.cloud_download_outlined,
-                            size: 48,
-                            color: scheme.onSurfaceVariant,
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            _showHistory
-                                ? 'No completed downloads yet'
-                                : 'No active downloads',
-                            style: theme.textTheme.titleMedium,
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Paste a TikTok, Instagram, or YouTube URL on Home, or share directly from the Android Share Sheet.',
-                            textAlign: TextAlign.center,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
+                      padding: const EdgeInsets.symmetric(horizontal: 28),
+                      child: EditorialWell(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _showHistory
+                                  ? 'No completed downloads yet'
+                                  : 'No active downloads',
+                              style: theme.textTheme.titleMedium,
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 6),
+                            Text(
+                              'Paste a TikTok, Instagram, or YouTube URL on Home, or share directly from the Android Share Sheet.',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: KlipFetchTheme.inkSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   )
-                : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                    itemCount: displayed.length,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(height: 10),
+                : ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+                    itemCount:
+                        displayed.length + (!_showHistory ? 1 : 0),
                     itemBuilder: (context, index) {
+                      if (index == displayed.length) {
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 14),
+                          child: Text(
+                            'Active downloads run in a foreground service so transfers continue when the screen turns off.',
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        );
+                      }
                       final item = displayed[index];
-                      return _QueueItemCard(
+                      return _QueueLedgerRow(
                         item: item,
                         bytesLabel: _formatBytes(
                           item.totalBytes ?? item.downloadedBytes,
@@ -210,8 +192,8 @@ class _DownloadsScreenState extends ConsumerState<DownloadsScreen> {
   }
 }
 
-class _QueueItemCard extends StatelessWidget {
-  const _QueueItemCard({
+class _QueueLedgerRow extends StatelessWidget {
+  const _QueueLedgerRow({
     required this.item,
     required this.bytesLabel,
     required this.speedLabel,
@@ -236,13 +218,12 @@ class _QueueItemCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
 
     final phaseColor = switch (item.phase) {
       DownloadPhase.completed => KlipFetchTheme.successTone.ink,
-      DownloadPhase.failed => scheme.error,
-      DownloadPhase.cancelled => scheme.onSurfaceVariant,
-      _ => scheme.primary,
+      DownloadPhase.failed => KlipFetchTheme.lightError,
+      DownloadPhase.cancelled => KlipFetchTheme.lightMutedInk,
+      _ => KlipFetchTheme.brandAccent,
     };
 
     final metricParts = [
@@ -255,138 +236,178 @@ class _QueueItemCard extends StatelessWidget {
       if (item.exportedCount > 1) '${item.exportedCount} files',
     ];
 
-    return Card(
+    return Container(
       key: Key('queue_card_${item.id}'),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                PlatformBadge(platform: item.platform, compact: true),
-                const SizedBox(width: 6),
-                EngineBadge(
-                  engine: item.engine,
-                  usedFallback: item.usedFallback,
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      decoration: const BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: KlipFetchTheme.lightBorder),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              PlatformBadge(platform: item.platform, compact: true),
+              const SizedBox(width: 8),
+              EngineBadge(
+                engine: item.engine,
+                usedFallback: item.usedFallback,
+              ),
+              const Spacer(),
+              Text(
+                item.phase.label,
+                style: TextStyle(
+                  fontFamily: KlipFetchTheme.bodyFontFamily,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: phaseColor,
                 ),
-                const Spacer(),
-                Text(
-                  item.phase.label,
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: phaseColor,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            item.title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.titleMedium,
+          ),
+          if (item.isActive) ...[
             const SizedBox(height: 10),
-            Text(
-              item.title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            if (metricParts.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 12,
-                runSpacing: 4,
-                children: metricParts
-                    .map(
-                      (part) => Text(
-                        part,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                          fontFeatures: const [FontFeature.tabularFigures()],
-                        ),
-                      ),
-                    )
-                    .toList(),
-              ),
-            ],
-            if (item.isActive) ...[
-              const SizedBox(height: 10),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(999),
-                child: LinearProgressIndicator(
-                  value: item.progress > 0
-                      ? (item.progress / 100.0).clamp(0.0, 1.0)
-                      : null,
-                  minHeight: 6,
-                ),
-              ),
-            ],
-            if (item.phase == DownloadPhase.completed &&
-                item.outputPath != null &&
-                item.outputPath!.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(
-                item.outputPath!,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: KlipFetchTheme.successTone.ink,
-                ),
-              ),
-            ],
-            if (item.phase == DownloadPhase.failed &&
-                item.errorMessage != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                item.errorMessage!,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall?.copyWith(color: scheme.error),
-              ),
-            ],
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                if (item.isActive)
-                  TextButton.icon(
-                    onPressed: onCancel,
-                    icon: const Icon(Icons.close_rounded, size: 18),
-                    label: const Text('Cancel'),
-                  ),
-                if (item.phase == DownloadPhase.failed ||
-                    item.phase == DownloadPhase.cancelled) ...[
-                  TextButton.icon(
-                    onPressed: onRetry,
-                    icon: const Icon(Icons.refresh_rounded, size: 18),
-                    label: const Text('Retry'),
-                  ),
-                  TextButton.icon(
-                    onPressed: onDelete,
-                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                    label: const Text('Remove'),
-                  ),
-                ],
-                if (item.phase == DownloadPhase.completed) ...[
-                  if (item.contentUri != null || item.outputPath != null) ...[
-                    TextButton.icon(
-                      onPressed: onOpen,
-                      icon: const Icon(Icons.open_in_new_rounded, size: 18),
-                      label: const Text('Open'),
-                    ),
-                    TextButton.icon(
-                      onPressed: onShare,
-                      icon: const Icon(Icons.share_outlined, size: 18),
-                      label: const Text('Share'),
-                    ),
-                  ],
-                  IconButton(
-                    tooltip: 'Remove from history',
-                    onPressed: onDelete,
-                    icon: const Icon(Icons.delete_outline_rounded, size: 20),
-                  ),
-                ],
-              ],
+            LinearProgressIndicator(
+              value: item.progress > 0
+                  ? (item.progress / 100.0).clamp(0.0, 1.0)
+                  : null,
+              minHeight: 4,
             ),
           ],
+          if (item.phase == DownloadPhase.completed &&
+              item.outputPath != null &&
+              item.outputPath!.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              item.outputPath!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: KlipFetchTheme.monoStyle(
+                size: 11.5,
+                color: KlipFetchTheme.successTone.ink,
+              ),
+            ),
+          ],
+          if (item.phase == DownloadPhase.failed &&
+              item.errorMessage != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              item.errorMessage!,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontFamily: KlipFetchTheme.bodyFontFamily,
+                fontSize: 12,
+                color: KlipFetchTheme.lightError,
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Text(
+                  metricParts.join('   '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: KlipFetchTheme.monoStyle(size: 11.5),
+                ),
+              ),
+              const SizedBox(width: 12),
+              if (item.isActive)
+                _InlineLedgerAction(
+                  label: 'Cancel',
+                  color: KlipFetchTheme.inkSecondary,
+                  onTap: onCancel,
+                ),
+              if (item.phase == DownloadPhase.failed ||
+                  item.phase == DownloadPhase.cancelled) ...[
+                _InlineLedgerAction(
+                  label: 'Retry',
+                  color: item.phase == DownloadPhase.failed
+                      ? KlipFetchTheme.brandAccent
+                      : KlipFetchTheme.lightInk,
+                  onTap: onRetry,
+                ),
+                const SizedBox(width: 14),
+                _InlineLedgerAction(
+                  label: 'Remove',
+                  color: KlipFetchTheme.lightError,
+                  onTap: onDelete,
+                ),
+              ],
+              if (item.phase == DownloadPhase.completed) ...[
+                if (item.contentUri != null || item.outputPath != null) ...[
+                  _InlineLedgerAction(
+                    label: 'Open',
+                    color: KlipFetchTheme.lightInk,
+                    onTap: onOpen,
+                  ),
+                  const SizedBox(width: 14),
+                  _InlineLedgerAction(
+                    label: 'Share',
+                    color: KlipFetchTheme.inkSecondary,
+                    onTap: onShare,
+                  ),
+                  const SizedBox(width: 10),
+                ],
+                InkResponse(
+                  radius: 18,
+                  onTap: onDelete,
+                  child: const Padding(
+                    padding: EdgeInsets.all(4),
+                    child: Icon(
+                      Icons.delete_outline_rounded,
+                      size: 18,
+                      color: KlipFetchTheme.lightError,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InlineLedgerAction extends StatelessWidget {
+  const _InlineLedgerAction({
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(2),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontFamily: KlipFetchTheme.bodyFontFamily,
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+            color: color,
+          ),
         ),
       ),
     );
