@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-27
+
 ### Added
 - Hallmark Editorial design specification (`design.md`) and FigCraft source/renders (`design/klipfetch.figcraft`, `design/build_figcraft.mjs`, `design/tokens.css`, `design/renders/`)
 - Bundled SIL OFL 1.1 typography (`Bricolage Grotesque`, `IBM Plex Sans` 400/600, and `IBM Plex Mono`) under `assets/fonts/`
@@ -16,7 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Redesigned `KlipFetchTheme` and all primary screens (`Home`, `Downloads`, `Settings`, `Accounts & Cookies`) in an Editorial paper-and-terracotta layout (`#F5F2EC` background, `#FFFCF7` surfaces, `#BF3909` accent, `#1A1715` ink)
 - Replaced Material 3 bottom navigation bar with an Editorial top-rule navigation bar (`lib/app/klipfetch_app.dart`)
-- Aligned native Android `AuthWebViewActivity` toolbar colors, hairline divider, terracotta loading bar, and 4dp `Save Session` action button with the Editorial design system
+- Ordered Home playlist picker above video container/subtitles/SponsorBlock toggles and flattened Settings and Accounts & Cookies rows with 1px hairlines
+- Aligned native Android `AuthWebViewActivity` toolbar with vector Close/Reload icons, hairline divider, terracotta loading bar, and 4dp `Save Session` action button
 
 ### Removed
 - Removed untracked `web/` scaffold folder to maintain strict Android-only build boundaries
@@ -68,7 +71,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated `YtDlpService` to return resolved `outputPath` from `YtDlpChannelHandler.kt` and replaced the starter template in `lib/main.dart` with `KlipFetchApp`.
 - Updated `UrlRouterService`, `YtDlpChannelHandler.kt`, and `DownloadQueueNotifier` to propagate shared `cookies.txt`, muxing phase telemetry, and multi-file staging directory exports.
 
-[Unreleased]: https://github.com/fyou00/klipfetch/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/fyou00/klipfetch/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/fyou00/klipfetch/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/fyou00/klipfetch/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/fyou00/klipfetch/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/fyou00/klipfetch/releases/tag/v0.1.0

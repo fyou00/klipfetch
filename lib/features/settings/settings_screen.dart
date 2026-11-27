@@ -115,7 +115,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               title: 'Settings',
               padding: const EdgeInsets.fromLTRB(0, 14, 0, 12),
               trailing: Text(
-                'v0.1.1',
+                'v0.2.0',
                 style: KlipFetchTheme.monoStyle(
                   size: 12,
                   color: KlipFetchTheme.lightMutedInk,
@@ -452,7 +452,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
             // ── Colophon & License ───────────────────────────────────────
             Text(
-              'KlipFetch v0.1.1 (GNU GPL v3.0). Powered by libreget-core, yt-dlp, youtubedl-android, FFmpeg, and Flutter Rust Bridge.',
+              'KlipFetch v0.2.0 (GNU GPL v3.0). Powered by libreget-core, yt-dlp, youtubedl-android, FFmpeg, and Flutter Rust Bridge.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: KlipFetchTheme.lightMutedInk,
                 height: 1.45,

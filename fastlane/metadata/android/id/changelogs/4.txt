@@ -1,0 +1,4 @@
+Rilis v0.2.0:
+- Desain ulang penuh bergaya Hallmark Editorial pada layar Home, Downloads, Settings, Accounts & Cookies, dan AuthWebView native dengan font Bricolage Grotesque, IBM Plex Sans, dan IBM Plex Mono.
+- Menambahkan ikon launcher adaptif Kiln Aperture dan latar splash kertas hangat.
+- Menyelaraskan urutan pemilih playlist, daftar hairline Settings/Accounts, serta ikon toolbar tutup/muat ulang.

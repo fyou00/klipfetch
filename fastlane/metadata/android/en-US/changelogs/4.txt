@@ -1,0 +1,4 @@
+Release v0.2.0:
+- Full Hallmark Editorial redesign across Home, Downloads, Settings, Accounts & Cookies, and native AuthWebView with bundled Bricolage Grotesque, IBM Plex Sans, and IBM Plex Mono typography.
+- Added Kiln Aperture adaptive launcher icon and warm archival paper splash screen.
+- Aligned playlist picker ordering, flat hairline Settings/Accounts ledgers, and vector Close/Reload toolbar icons.
