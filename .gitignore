@@ -67,3 +67,7 @@ cookies.txt
 .env.*
 !.env.example
 
+# Local Hallmark caches & intermediate FigCraft command dumps
+.hallmark/
+design/klipfetch_commands.json
+
