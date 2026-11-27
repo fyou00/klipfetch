@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Hallmark Editorial design specification (`design.md`) and FigCraft source/renders (`design/klipfetch.figcraft`, `design/build_figcraft.mjs`, `design/tokens.css`, `design/renders/`)
+- Bundled SIL OFL 1.1 typography (`Bricolage Grotesque`, `IBM Plex Sans` 400/600, and `IBM Plex Mono`) under `assets/fonts/`
+- Editorial control primitives (`lib/widgets/editorial_controls.dart`) and ink/paper status tags (`lib/widgets/platform_badge.dart`)
+- Android Kiln Aperture adaptive launcher icon (`mipmap-anydpi-v26/ic_launcher.xml`, foreground/monochrome vector drawables, `mdpi`–`xxxhdpi` PNG mipmaps) and warm archival paper launch background (`#F5F2EC`)
+
+### Changed
+- Redesigned `KlipFetchTheme` and all primary screens (`Home`, `Downloads`, `Settings`, `Accounts & Cookies`) in an Editorial paper-and-terracotta layout (`#F5F2EC` background, `#FFFCF7` surfaces, `#BF3909` accent, `#1A1715` ink)
+- Replaced Material 3 bottom navigation bar with an Editorial top-rule navigation bar (`lib/app/klipfetch_app.dart`)
+- Aligned native Android `AuthWebViewActivity` toolbar colors, hairline divider, terracotta loading bar, and 4dp `Save Session` action button with the Editorial design system
+
+### Removed
+- Removed untracked `web/` scaffold folder to maintain strict Android-only build boundaries
+
 ## [0.1.2] - 2026-11-27
 
 ### Fixed
