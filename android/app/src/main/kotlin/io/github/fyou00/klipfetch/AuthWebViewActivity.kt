@@ -2,6 +2,7 @@ package io.github.fyou00.klipfetch
 
 import android.app.Activity
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -110,10 +111,10 @@ class AuthWebViewActivity : Activity() {
 
         val toolbar = buildToolbar()
         val toolbarDivider = View(this).apply {
-            setBackgroundColor(Color.parseColor("#E4DDD3"))
+            setBackgroundColor(Color.parseColor("#1A1715"))
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(1),
+                dp(2),
             )
         }
         progressBar = ProgressBar(
@@ -123,6 +124,8 @@ class AuthWebViewActivity : Activity() {
         ).apply {
             max = 100
             progress = 0
+            progressTintList = ColorStateList.valueOf(Color.parseColor("#BF3909"))
+            progressBackgroundTintList = ColorStateList.valueOf(Color.parseColor("#ECE7DD"))
             visibility = View.GONE
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -165,7 +168,7 @@ class AuthWebViewActivity : Activity() {
             text = "Close"
             isAllCaps = false
             background = null
-            setTextColor(Color.parseColor("#5F5852"))
+            setTextColor(Color.parseColor("#4A433C"))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
             setPadding(dp(8), dp(6), dp(8), dp(6))
             minWidth = 0
@@ -188,7 +191,7 @@ class AuthWebViewActivity : Activity() {
 
         val titleView = TextView(this).apply {
             text = "Sign in to $platformLabel"
-            setTextColor(Color.parseColor("#1B1816"))
+            setTextColor(Color.parseColor("#1A1715"))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
             typeface = Typeface.DEFAULT_BOLD
             maxLines = 1
@@ -197,7 +200,7 @@ class AuthWebViewActivity : Activity() {
 
         statusView = TextView(this).apply {
             text = "Log in, then tap Save Session"
-            setTextColor(Color.parseColor("#5F5852"))
+            setTextColor(Color.parseColor("#6B635B"))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
             maxLines = 1
             ellipsize = TextUtils.TruncateAt.END
@@ -210,7 +213,7 @@ class AuthWebViewActivity : Activity() {
             text = "Reload"
             isAllCaps = false
             background = null
-            setTextColor(Color.parseColor("#5F5852"))
+            setTextColor(Color.parseColor("#4A433C"))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
             setPadding(dp(8), dp(6), dp(8), dp(6))
             minWidth = 0
@@ -222,7 +225,7 @@ class AuthWebViewActivity : Activity() {
 
         val saveBackground = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
-            cornerRadius = dp(18).toFloat()
+            cornerRadius = dp(4).toFloat()
             setColor(Color.parseColor("#BF3909"))
         }
 
@@ -295,11 +298,11 @@ class AuthWebViewActivity : Activity() {
     private fun refreshDetectedSessionStatus() {
         val snapshot = collectCapturedCookies()
         if (snapshot.hasAuthCookie) {
-            statusView.text = "Session detected (${snapshot.cookieCount} cookies), tap Save"
-            statusView.setTextColor(Color.parseColor("#166E36"))
+            statusView.text = "${snapshot.cookieCount} cookies ready. Tap Save Session."
+            statusView.setTextColor(Color.parseColor("#166835"))
         } else if (snapshot.cookieCount > 0) {
-            statusView.text = "${snapshot.cookieCount} cookies loaded, sign in then Save"
-            statusView.setTextColor(Color.parseColor("#8A5300"))
+            statusView.text = "${snapshot.cookieCount} cookies loaded. Sign in, then Save Session."
+            statusView.setTextColor(Color.parseColor("#8C5200"))
         }
     }
 
