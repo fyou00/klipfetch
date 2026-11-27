@@ -10,6 +10,7 @@ import '../../models/media_probe.dart';
 import '../../services/url_extractor.dart';
 import '../../state/providers.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/editorial_controls.dart';
 import '../../widgets/platform_badge.dart';
 import '../auth/auth_browser_screen.dart';
 
@@ -133,22 +134,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         return;
       }
 
-      final items =
-          await ref.read(downloadQueueProvider.notifier).enqueuePlaylistSelection(
-                entries: selectedEntries,
-                preferredEngine: probe.engine,
-                formatSelector: selected?.formatId,
-                qualityLabel: probeState.audioOnly
-                    ? probeState.selectedAudioFormat.toUpperCase()
-                    : selected?.label,
-                audioOnly: probeState.audioOnly,
-                audioFormat: probeState.selectedAudioFormat,
-                mergeOutputFormat: mergeContainer,
-                downloadSubtitles: enableSubs,
-                embedSubtitles: probeState.embedSubtitles,
-                subtitleLangs: enableSubs ? settings.subtitleLanguages : null,
-                sponsorBlockCategories: sponsorCategories,
-              );
+      final items = await ref
+          .read(downloadQueueProvider.notifier)
+          .enqueuePlaylistSelection(
+            entries: selectedEntries,
+            preferredEngine: probe.engine,
+            formatSelector: selected?.formatId,
+            qualityLabel: probeState.audioOnly
+                ? probeState.selectedAudioFormat.toUpperCase()
+                : selected?.label,
+            audioOnly: probeState.audioOnly,
+            audioFormat: probeState.selectedAudioFormat,
+            mergeOutputFormat: mergeContainer,
+            downloadSubtitles: enableSubs,
+            embedSubtitles: probeState.embedSubtitles,
+            subtitleLangs: enableSubs ? settings.subtitleLanguages : null,
+            sponsorBlockCategories: sponsorCategories,
+          );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -214,6 +216,69 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     return '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
   }
 
+  Widget _buildUrlField(HomeProbeState probeState, {required bool hasError}) {
+    final isUnsupported =
+        probeState.inputUrl.isNotEmpty &&
+        probeState.detectedPlatform == MediaPlatform.unsupported;
+
+    return TextField(
+      key: const Key('home_url_input'),
+      controller: _urlController,
+      keyboardType: TextInputType.url,
+      textInputAction: TextInputAction.search,
+      style: KlipFetchTheme.monoStyle(
+        size: 12.5,
+        color: KlipFetchTheme.lightInk,
+      ),
+      onChanged: (value) {
+        ref.read(homeProbeProvider.notifier).updateUrl(value);
+      },
+      onSubmitted: (_) {
+        ref.read(homeProbeProvider.notifier).probeCurrentUrl();
+      },
+      decoration: InputDecoration(
+        hintText: 'https://tiktok.com/… or youtu.be/…',
+        prefixIcon: Icon(
+          Icons.link_rounded,
+          size: 18,
+          color: (hasError || isUnsupported)
+              ? KlipFetchTheme.lightError
+              : KlipFetchTheme.lightMutedInk,
+        ),
+        enabledBorder: (hasError || isUnsupported)
+            ? OutlineInputBorder(
+                borderRadius: BorderRadius.circular(4),
+                borderSide: const BorderSide(color: KlipFetchTheme.lightError),
+              )
+            : null,
+        suffixIcon: Padding(
+          padding: const EdgeInsets.only(right: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (probeState.inputUrl.isNotEmpty)
+                IconButton(
+                  key: const Key('home_clear_button'),
+                  tooltip: 'Clear',
+                  icon: const Icon(Icons.close_rounded, size: 18),
+                  onPressed: () {
+                    _urlController.clear();
+                    ref.read(homeProbeProvider.notifier).clear();
+                  },
+                ),
+              IconButton(
+                key: const Key('home_paste_button'),
+                tooltip: 'Paste',
+                icon: const Icon(Icons.content_paste_rounded, size: 18),
+                onPressed: _pasteFromClipboard,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.listen<HomeProbeState>(homeProbeProvider, (previous, next) {
@@ -227,166 +292,113 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     final probeState = ref.watch(homeProbeProvider);
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
+    final probe = probeState.probeResult;
+    final hasError = probeState.errorMessage != null;
 
     return SafeArea(
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+        padding: EdgeInsets.zero,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: KlipFetchTheme.lightTonalFill,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: KlipFetchTheme.brandAccent.withValues(alpha: 0.28),
+          if (probe == null) ...[
+            const EditorialMasthead(title: 'KlipFetch'),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: const BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: KlipFetchTheme.lightBorder),
+                ),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Supported',
+                    style: TextStyle(
+                      fontFamily: KlipFetchTheme.bodyFontFamily,
+                      fontSize: 12,
+                      color: KlipFetchTheme.lightMutedInk,
+                    ),
                   ),
-                ),
-                child: const Icon(
-                  Icons.download_for_offline_rounded,
-                  color: KlipFetchTheme.lightOnTonal,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'KlipFetch',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
+                  Wrap(
+                    spacing: 14,
+                    runSpacing: 6,
+                    children: [
+                      PlatformBadge(platform: MediaPlatform.tiktok, compact: true),
+                      PlatformBadge(
+                        platform: MediaPlatform.instagram,
+                        compact: true,
                       ),
-                    ),
-                    Text(
-                      'Media downloader for Android',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          const Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              PlatformBadge(platform: MediaPlatform.tiktok, compact: true),
-              PlatformBadge(platform: MediaPlatform.instagram, compact: true),
-              PlatformBadge(platform: MediaPlatform.youtube, compact: true),
-            ],
-          ),
-          const SizedBox(height: 16),
-          if (_clipboardSuggestedUrl != null) ...[
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.content_paste_go_rounded,
-                      color: scheme.primary,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Supported link in clipboard',
-                            style: theme.textTheme.labelLarge,
-                          ),
-                          Text(
-                            _clipboardSuggestedUrl!,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    FilledButton.tonal(
-                      onPressed: () {
-                        final candidate = _clipboardSuggestedUrl!;
-                        setState(() {
-                          _clipboardSuggestedUrl = null;
-                        });
-                        ref.read(homeProbeProvider.notifier).probeUrl(candidate);
-                      },
-                      child: const Text('Fetch'),
-                    ),
-                  ],
-                ),
+                      PlatformBadge(platform: MediaPlatform.youtube, compact: true),
+                    ],
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 12),
-          ],
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  TextField(
-                    key: const Key('home_url_input'),
-                    controller: _urlController,
-                    keyboardType: TextInputType.url,
-                    textInputAction: TextInputAction.search,
-                    onChanged: (value) {
-                      ref.read(homeProbeProvider.notifier).updateUrl(value);
-                    },
-                    onSubmitted: (_) {
-                      ref.read(homeProbeProvider.notifier).probeCurrentUrl();
-                    },
-                    decoration: InputDecoration(
-                      labelText: 'Paste media URL',
-                      hintText: 'https://www.tiktok.com/... or youtu.be/...',
-                      prefixIcon: const Icon(Icons.link_rounded),
-                      suffixIcon: Row(
-                        mainAxisSize: MainAxisSize.min,
+                  if (_clipboardSuggestedUrl != null) ...[
+                    EditorialWell(
+                      padding: const EdgeInsets.fromLTRB(14, 10, 12, 10),
+                      child: Row(
                         children: [
-                          if (probeState.inputUrl.isNotEmpty)
-                            IconButton(
-                              key: const Key('home_clear_button'),
-                              tooltip: 'Clear',
-                              icon: const Icon(Icons.close_rounded),
-                              onPressed: () {
-                                _urlController.clear();
-                                ref.read(homeProbeProvider.notifier).clear();
-                              },
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Link found in clipboard',
+                                  style: theme.textTheme.labelMedium,
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  _clipboardSuggestedUrl!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: KlipFetchTheme.monoStyle(size: 11.5),
+                                ),
+                              ],
                             ),
-                          IconButton(
-                            key: const Key('home_paste_button'),
-                            tooltip: 'Paste',
-                            icon: const Icon(Icons.content_paste_rounded),
-                            onPressed: _pasteFromClipboard,
+                          ),
+                          const SizedBox(width: 10),
+                          OutlinedButton(
+                            onPressed: () {
+                              final candidate = _clipboardSuggestedUrl!;
+                              setState(() {
+                                _clipboardSuggestedUrl = null;
+                              });
+                              ref
+                                  .read(homeProbeProvider.notifier)
+                                  .probeUrl(candidate);
+                            },
+                            child: const Text('Fetch'),
                           ),
                         ],
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 16),
+                  ],
+                  Text('Paste media URL', style: theme.textTheme.labelLarge),
+                  const SizedBox(height: 8),
+                  _buildUrlField(probeState, hasError: hasError),
                   if (probeState.inputUrl.isNotEmpty) ...[
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     Row(
                       children: [
-                        PlatformBadge(platform: probeState.detectedPlatform),
-                        const SizedBox(width: 8),
+                        PlatformBadge(
+                          platform: probeState.detectedPlatform,
+                          compact: true,
+                        ),
+                        const SizedBox(width: 10),
                         if (probeState.detectedPlatform ==
                             MediaPlatform.unsupported)
                           Expanded(
                             child: Text(
                               'Only TikTok, Instagram, and YouTube are supported.',
                               style: theme.textTheme.bodySmall?.copyWith(
-                                color: scheme.error,
+                                color: KlipFetchTheme.lightError,
                               ),
                             ),
                           ),
@@ -406,83 +418,156 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                           },
                     icon: probeState.isProbing
                         ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: KlipFetchTheme.lightMutedInk,
+                            ),
                           )
-                        : const Icon(Icons.search_rounded),
+                        : const Icon(Icons.search_rounded, size: 18),
                     label: Text(
-                      probeState.isProbing ? 'Fetching info...' : 'Fetch Media',
+                      probeState.isProbing ? 'Fetching info…' : 'Fetch Media',
                     ),
+                  ),
+                  if (hasError) ...[
+                    const SizedBox(height: 14),
+                    _AuthOrProbeErrorWell(
+                      message: probeState.errorMessage!,
+                      showAuthButton: _looksLikeAuthError(
+                            probeState.errorMessage!,
+                          ) &&
+                          probeState.detectedPlatform !=
+                              MediaPlatform.unsupported,
+                      platformName: probeState.detectedPlatform.displayName,
+                      onSignIn: _openAuthScreen,
+                    ),
+                  ] else ...[
+                    const SizedBox(height: 24),
+                    const EditorialHairline(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(color: KlipFetchTheme.lightBorder),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Share from other apps',
+                            style: theme.textTheme.labelLarge,
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            'Send any TikTok, Instagram, or YouTube link straight to KlipFetch via the Android Share menu.',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: KlipFetchTheme.inkSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Saved downloads folder',
+                            style: theme.textTheme.labelLarge,
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            'Downloads/KlipFetch/{TikTok,Instagram,YouTube}',
+                            style: KlipFetchTheme.monoStyle(size: 11.5),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ] else ...[
+            // Probed Spec Sheet view: compact URL strip + heavy 2px rule + flat spec sheet
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildUrlField(probeState, hasError: hasError),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            PlatformBadge(
+                              platform: probe.platform,
+                              compact: true,
+                            ),
+                            EngineBadge(
+                              engine: probe.engine,
+                              usedFallback: probe.usedFallback,
+                            ),
+                            if (probe.isPlaylist)
+                              EditorialStatusTag(
+                                label:
+                                    'Playlist (${probe.playlistEntries.length} videos)',
+                                outlined: true,
+                              ),
+                            if (!probe.isPlaylist && probe.isCarousel)
+                              EditorialStatusTag(
+                                label: probe.platform == MediaPlatform.tiktok
+                                    ? 'Slideshow (${probe.photoSlideCount} photos)'
+                                    : 'Carousel (${probe.photoSlideCount} items)',
+                                outlined: true,
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton(
+                        key: const Key('home_fetch_button'),
+                        onPressed: probeState.isProbing
+                            ? null
+                            : () {
+                                FocusScope.of(context).unfocus();
+                                ref
+                                    .read(homeProbeProvider.notifier)
+                                    .probeCurrentUrl();
+                              },
+                        child: Text(
+                          probeState.isProbing ? 'Fetching…' : 'Fetch Media',
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-          ),
-          if (probeState.errorMessage != null) ...[
-            const SizedBox(height: 12),
-            Card(
-              color: KlipFetchTheme.lightErrorFill,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: const BorderSide(color: KlipFetchTheme.lightErrorBorder),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(Icons.error_outline_rounded, color: scheme.error),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            probeState.errorMessage!,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: scheme.onSurface,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (_looksLikeAuthError(probeState.errorMessage!) &&
-                        probeState.detectedPlatform !=
-                            MediaPlatform.unsupported) ...[
-                      const SizedBox(height: 8),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: FilledButton.tonalIcon(
-                          key: const Key('home_auth_error_button'),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: KlipFetchTheme.lightTonalFill,
-                            foregroundColor: KlipFetchTheme.lightOnTonal,
-                            side: BorderSide(
-                              color: KlipFetchTheme.brandAccent.withValues(
-                                alpha: 0.35,
-                              ),
-                            ),
-                          ),
-                          onPressed: _openAuthScreen,
-                          icon: const Icon(Icons.login_rounded, size: 18),
-                          label: Text(
-                            'Sign in to ${probeState.detectedPlatform.displayName}',
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
+            const EditorialHeavyRule(),
+            if (hasError)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+                child: _AuthOrProbeErrorWell(
+                  message: probeState.errorMessage!,
+                  showAuthButton: _looksLikeAuthError(
+                        probeState.errorMessage!,
+                      ) &&
+                      probeState.detectedPlatform != MediaPlatform.unsupported,
+                  platformName: probeState.detectedPlatform.displayName,
+                  onSignIn: _openAuthScreen,
                 ),
               ),
-            ),
-          ],
-          if (probeState.probeResult != null) ...[
-            const SizedBox(height: 16),
-            _ProbePreviewCard(
+            _ProbeSpecSheet(
               probeState: probeState,
-              durationText:
-                  _formatDuration(probeState.probeResult!.durationSeconds),
+              durationText: _formatDuration(probe.durationSeconds),
               onAudioOnlyChanged: (audioOnly) {
                 ref.read(homeProbeProvider.notifier).setAudioOnly(audioOnly);
               },
@@ -541,8 +626,73 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 }
 
-class _ProbePreviewCard extends StatelessWidget {
-  const _ProbePreviewCard({
+class _AuthOrProbeErrorWell extends StatelessWidget {
+  const _AuthOrProbeErrorWell({
+    required this.message,
+    required this.showAuthButton,
+    required this.platformName,
+    required this.onSignIn,
+  });
+
+  final String message;
+  final bool showAuthButton;
+  final String platformName;
+  final VoidCallback onSignIn;
+
+  @override
+  Widget build(BuildContext context) {
+    return EditorialWell(
+      fillColor: KlipFetchTheme.lightErrorFill,
+      borderColor: KlipFetchTheme.lightErrorBorder,
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.error_outline_rounded,
+                size: 18,
+                color: KlipFetchTheme.lightError,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  message,
+                  style: const TextStyle(
+                    fontFamily: KlipFetchTheme.bodyFontFamily,
+                    fontSize: 13,
+                    color: KlipFetchTheme.lightInk,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (showAuthButton) ...[
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerRight,
+              child: OutlinedButton.icon(
+                key: const Key('home_auth_error_button'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: KlipFetchTheme.lightError,
+                  side: const BorderSide(color: KlipFetchTheme.lightError),
+                ),
+                onPressed: onSignIn,
+                icon: const Icon(Icons.vpn_key_outlined, size: 16),
+                label: Text('Sign in to $platformName'),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ProbeSpecSheet extends StatelessWidget {
+  const _ProbeSpecSheet({
     required this.probeState,
     required this.durationText,
     required this.onAudioOnlyChanged,
@@ -591,7 +741,6 @@ class _ProbePreviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final probe = probeState.probeResult!;
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
     final isYouTube = probe.platform == MediaPlatform.youtube;
     final isTikTok = probe.platform == MediaPlatform.tiktok;
     final selectableQualities = probe.qualities
@@ -599,365 +748,337 @@ class _ProbePreviewCard extends StatelessWidget {
         .toList(growable: false);
     final selectedPlaylistCount = probeState.selectedPlaylistIndices.length;
     final downloadDisabled = probe.isPlaylist && selectedPlaylistCount == 0;
+    final hasThumbnail =
+        probe.thumbnailUrl != null && probe.thumbnailUrl!.isNotEmpty;
 
-    return Card(
+    return Container(
       key: const Key('home_preview_card'),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (!probe.isPlaylist) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: Container(
+                height: 168,
+                decoration: BoxDecoration(
+                  color: KlipFetchTheme.lightInk,
+                  border: Border.all(color: KlipFetchTheme.lightControlOutline),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (hasThumbnail)
+                      Image.network(
+                        probe.thumbnailUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const _EditorialPosterFallback(),
+                      )
+                    else
+                      const _EditorialPosterFallback(),
+                    if (durationText.isNotEmpty)
+                      Positioned(
+                        right: 10,
+                        bottom: 10,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xE614110F),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                          child: Text(
+                            durationText,
+                            style: KlipFetchTheme.monoStyle(
+                              size: 11,
+                              height: 1.2,
+                              color: KlipFetchTheme.lightOnPrimary,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+          Text(
+            probe.title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: KlipFetchTheme.displayStyle(
+              size: 20,
+              wdth: 85,
+              height: 1.15,
+              letterSpacing: -0.2,
+            ),
+          ),
+          if (probe.author.isNotEmpty ||
+              (probe.isPlaylist && durationText.isNotEmpty)) ...[
+            const SizedBox(height: 4),
             Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: SizedBox(
-                    width: 96,
-                    height: 72,
-                    child: probe.thumbnailUrl != null &&
-                            probe.thumbnailUrl!.isNotEmpty
-                        ? Image.network(
-                            probe.thumbnailUrl!,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) =>
-                                _ThumbnailFallback(scheme: scheme),
-                          )
-                        : _ThumbnailFallback(scheme: scheme),
+                if (probe.author.isNotEmpty)
+                  Expanded(
+                    child: Text(
+                      probe.author,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: [
-                          PlatformBadge(
-                            platform: probe.platform,
-                            compact: true,
-                          ),
-                          EngineBadge(
-                            engine: probe.engine,
-                            usedFallback: probe.usedFallback,
-                          ),
-                          if (probe.isPlaylist)
-                            _InfoPill(
-                              label:
-                                  'Playlist (${probe.playlistEntries.length} videos)',
-                            ),
-                          if (!probe.isPlaylist && probe.isCarousel)
-                            _InfoPill(
-                              label: isTikTok
-                                  ? 'Slideshow (${probe.photoSlideCount} photos)'
-                                  : 'Carousel (${probe.photoSlideCount} items)',
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        probe.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      if (probe.author.isNotEmpty || durationText.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: Wrap(
-                            spacing: 10,
-                            runSpacing: 4,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [
-                              if (probe.author.isNotEmpty)
-                                Text(
-                                  probe.author,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: scheme.onSurfaceVariant,
-                                  ),
-                                ),
-                              if (durationText.isNotEmpty)
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.schedule_rounded,
-                                      size: 13,
-                                      color: scheme.onSurfaceVariant,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      durationText,
-                                      style: theme.textTheme.bodySmall?.copyWith(
-                                        color: scheme.onSurfaceVariant,
-                                        fontFeatures: const [
-                                          FontFeature.tabularFigures(),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                            ],
-                          ),
-                        ),
-                    ],
+                if (probe.isPlaylist && durationText.isNotEmpty)
+                  Text(
+                    durationText,
+                    style: KlipFetchTheme.monoStyle(
+                      size: 11.5,
+                      color: KlipFetchTheme.lightMutedInk,
+                    ),
                   ),
-                ),
               ],
             ),
-            const SizedBox(height: 16),
-            SegmentedButton<bool>(
-              segments: const [
-                ButtonSegment<bool>(
-                  value: false,
-                  label: Text('Video'),
-                  icon: Icon(Icons.videocam_outlined),
-                ),
-                ButtonSegment<bool>(
-                  value: true,
-                  label: Text('Audio Only'),
-                  icon: Icon(Icons.audiotrack_outlined),
-                ),
-              ],
-              selected: {probeState.audioOnly},
-              onSelectionChanged: (selection) {
-                if (selection.isNotEmpty) {
-                  onAudioOnlyChanged(selection.first);
-                }
-              },
-            ),
-            const SizedBox(height: 14),
-            if (!probeState.audioOnly) ...[
-              if (probe.isCarousel)
-                Text(
+          ],
+          const SizedBox(height: 14),
+          EditorialSegmentedControl<bool>(
+            options: const [
+              EditorialSegmentOption(value: false, label: 'Video'),
+              EditorialSegmentOption(value: true, label: 'Audio Only'),
+            ],
+            selected: probeState.audioOnly,
+            onSelected: onAudioOnlyChanged,
+          ),
+          const SizedBox(height: 14),
+          if (!probeState.audioOnly) ...[
+            if (probe.isCarousel)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
                   isTikTok
                       ? 'TikTok slideshow (${probe.photoSlideCount} slides)'
                       : 'Instagram carousel (${probe.photoSlideCount} items)',
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: scheme.onSurfaceVariant,
+                    color: KlipFetchTheme.inkSecondary,
                   ),
-                )
-              else if (selectableQualities.isNotEmpty) ...[
-                Text('Quality', style: theme.textTheme.labelLarge),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: selectableQualities.map((option) {
-                    final selected = probeState.selectedFormat?.formatId ==
-                            option.formatId &&
-                        probeState.selectedFormat?.label == option.label;
-                    return ChoiceChip(
-                      label: Text(_formatQualityChipLabel(option)),
-                      selected: selected,
-                      onSelected: (_) => onFormatSelected(option),
-                    );
-                  }).toList(),
                 ),
-              ],
-            ] else ...[
-              Text('Audio Format', style: theme.textTheme.labelLarge),
+              )
+            else if (selectableQualities.isNotEmpty) ...[
+              Text('Quality', style: theme.textTheme.labelLarge),
               const SizedBox(height: 8),
               Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: AppSettings.supportedAudioFormats.map((fmt) {
-                  return ChoiceChip(
-                    label: Text(fmt.toUpperCase()),
-                    selected: probeState.selectedAudioFormat == fmt,
-                    onSelected: (_) => onAudioFormatSelected(fmt),
+                spacing: 6,
+                runSpacing: 6,
+                children: selectableQualities.map((option) {
+                  final selected =
+                      probeState.selectedFormat?.formatId == option.formatId &&
+                      probeState.selectedFormat?.label == option.label;
+                  return EditorialSpecChip(
+                    label: _formatQualityChipLabel(option),
+                    selected: selected,
+                    onTap: () => onFormatSelected(option),
                   );
                 }).toList(),
               ),
             ],
-            if (isTikTok &&
-                probe.hasSlideshowAudio &&
-                !probeState.audioOnly) ...[
-              const SizedBox(height: 10),
-              SwitchListTile(
-                key: const Key('home_tiktok_slideshow_audio_switch'),
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Include slideshow background audio'),
-                value: probeState.tiktokSlideshowIncludeAudio,
-                onChanged: onTiktokSlideshowIncludeAudioChanged,
-              ),
-            ],
-            if (isYouTube && !probeState.audioOnly) ...[
-              const SizedBox(height: 14),
-              Text('Video Container', style: theme.textTheme.labelLarge),
-              const SizedBox(height: 8),
-              SegmentedButton<String>(
-                segments: AppSettings.supportedVideoContainers
-                    .map(
-                      (container) => ButtonSegment<String>(
-                        value: container,
-                        label: Text(container.toUpperCase()),
-                      ),
-                    )
-                    .toList(),
-                selected: {probeState.videoContainer},
-                onSelectionChanged: (selection) {
-                  if (selection.isNotEmpty) {
-                    onVideoContainerChanged(selection.first);
-                  }
-                },
-              ),
-              const SizedBox(height: 8),
-              SwitchListTile(
-                key: const Key('home_subtitles_switch'),
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Download subtitles (SRT/VTT)'),
-                subtitle: probe.availableSubtitles.isNotEmpty
-                    ? Text(
-                        'Available: ${probe.availableSubtitles.take(5).join(", ")}',
-                      )
-                    : null,
-                value: probeState.downloadSubtitles,
-                onChanged: onDownloadSubtitlesChanged,
-              ),
-              if (probeState.downloadSubtitles)
-                SwitchListTile(
-                  key: const Key('home_embed_subtitles_switch'),
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Embed subtitles into video'),
-                  value: probeState.embedSubtitles,
-                  onChanged: onEmbedSubtitlesChanged,
+          ] else ...[
+            Text('Audio Format', style: theme.textTheme.labelLarge),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: AppSettings.supportedAudioFormats.map((fmt) {
+                return EditorialSpecChip(
+                  label: fmt.toUpperCase(),
+                  selected: probeState.selectedAudioFormat == fmt,
+                  onTap: () => onAudioFormatSelected(fmt),
+                );
+              }).toList(),
+            ),
+          ],
+          if (isTikTok &&
+              probe.hasSlideshowAudio &&
+              !probeState.audioOnly) ...[
+            const SizedBox(height: 12),
+            const EditorialHairline(),
+            EditorialSwitchRow(
+              key: const Key('home_tiktok_slideshow_audio_switch'),
+              title: 'Include slideshow background audio',
+              value: probeState.tiktokSlideshowIncludeAudio,
+              onChanged: onTiktokSlideshowIncludeAudioChanged,
+              showBottomHairline: false,
+            ),
+          ],
+          if (isYouTube && !probeState.audioOnly) ...[
+            const SizedBox(height: 12),
+            Container(
+              height: 46,
+              decoration: const BoxDecoration(
+                border: Border(
+                  top: BorderSide(color: KlipFetchTheme.lightBorder),
+                  bottom: BorderSide(color: KlipFetchTheme.lightBorder),
                 ),
-            ],
-            if (isYouTube) ...[
-              SwitchListTile(
-                key: const Key('home_sponsorblock_switch'),
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Remove SponsorBlock segments'),
-                value: probeState.sponsorBlockEnabled,
-                onChanged: onSponsorBlockChanged,
               ),
-            ],
-            if (probe.isPlaylist) ...[
-              const SizedBox(height: 12),
-              Row(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Playlist Videos ($selectedPlaylistCount/${probe.playlistEntries.length})',
-                    style: theme.textTheme.labelLarge,
-                  ),
-                  const Spacer(),
-                  TextButton(
-                    key: const Key('home_playlist_select_all'),
-                    onPressed: onSelectAllPlaylist,
-                    child: const Text('All'),
-                  ),
-                  TextButton(
-                    key: const Key('home_playlist_clear'),
-                    onPressed: onClearPlaylist,
-                    child: const Text('None'),
+                  Text('Video Container', style: theme.textTheme.labelLarge),
+                  EditorialSegmentedControl<String>(
+                    compact: true,
+                    options: AppSettings.supportedVideoContainers
+                        .map(
+                          (c) => EditorialSegmentOption(
+                            value: c,
+                            label: c.toUpperCase(),
+                          ),
+                        )
+                        .toList(),
+                    selected: probeState.videoContainer,
+                    onSelected: onVideoContainerChanged,
                   ),
                 ],
               ),
-              Material(
-                color: KlipFetchTheme.lightSurfaceSubtle,
-                borderRadius: BorderRadius.circular(12),
-                clipBehavior: Clip.antiAlias,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 220),
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: probe.playlistEntries.length,
-                    separatorBuilder: (context, index) => const Divider(
-                      height: 1,
-                      indent: 12,
-                      endIndent: 12,
-                    ),
-                    itemBuilder: (context, idx) {
-                      final entry = probe.playlistEntries[idx];
-                      final checked =
-                          probeState.selectedPlaylistIndices.contains(entry.index);
-                      return CheckboxListTile(
-                        key: Key('playlist_entry_${entry.index}'),
-                        dense: true,
-                        controlAffinity: ListTileControlAffinity.leading,
-                        value: checked,
-                        title: Text(
-                          '${entry.index}. ${entry.title}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        onChanged: (_) => onTogglePlaylistEntry(entry.index),
-                      );
-                    },
+            ),
+            EditorialSwitchRow(
+              key: const Key('home_subtitles_switch'),
+              title: 'Download subtitles (SRT/VTT)',
+              subtitle: probe.availableSubtitles.isNotEmpty
+                  ? 'Available: ${probe.availableSubtitles.take(5).join(", ")}'
+                  : null,
+              value: probeState.downloadSubtitles,
+              onChanged: onDownloadSubtitlesChanged,
+            ),
+            if (probeState.downloadSubtitles)
+              EditorialSwitchRow(
+                key: const Key('home_embed_subtitles_switch'),
+                title: 'Embed subtitles into video',
+                value: probeState.embedSubtitles,
+                onChanged: onEmbedSubtitlesChanged,
+              ),
+          ],
+          if (isYouTube)
+            EditorialSwitchRow(
+              key: const Key('home_sponsorblock_switch'),
+              title: 'Remove SponsorBlock segments',
+              value: probeState.sponsorBlockEnabled,
+              onChanged: onSponsorBlockChanged,
+              showBottomHairline: probe.isPlaylist,
+            ),
+          if (probe.isPlaylist) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Text(
+                  'Playlist Videos ($selectedPlaylistCount/${probe.playlistEntries.length})',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
+                const Spacer(),
+                TextButton(
+                  key: const Key('home_playlist_select_all'),
+                  onPressed: onSelectAllPlaylist,
+                  child: const Text('All'),
+                ),
+                TextButton(
+                  key: const Key('home_playlist_clear'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: KlipFetchTheme.inkSecondary,
+                  ),
+                  onPressed: onClearPlaylist,
+                  child: const Text('None'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Material(
+              color: KlipFetchTheme.lightSurfaceSubtle,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(4),
+                side: const BorderSide(color: KlipFetchTheme.lightBorder),
               ),
-            ],
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              key: const Key('home_download_button'),
-              onPressed: downloadDisabled ? null : onDownload,
-              icon: const Icon(Icons.download_rounded),
-              label: Text(
-                probe.isPlaylist
-                    ? 'Download $selectedPlaylistCount Selected'
-                    : (probeState.audioOnly
-                        ? 'Download ${probeState.selectedAudioFormat.toUpperCase()}'
-                        : 'Download ${probeState.selectedFormat?.label ?? "Best"}'),
+              clipBehavior: Clip.antiAlias,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 220),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: probe.playlistEntries.length,
+                  separatorBuilder: (context, index) =>
+                      const EditorialHairline(),
+                  itemBuilder: (context, idx) {
+                    final entry = probe.playlistEntries[idx];
+                    final checked = probeState.selectedPlaylistIndices
+                        .contains(entry.index);
+                    return CheckboxListTile(
+                      key: Key('playlist_entry_${entry.index}'),
+                      dense: true,
+                      activeColor: KlipFetchTheme.brandAccent,
+                      checkColor: KlipFetchTheme.lightOnPrimary,
+                      side: const BorderSide(
+                        color: KlipFetchTheme.lightControlOutline,
+                        width: 1.5,
+                      ),
+                      checkboxShape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                      controlAffinity: ListTileControlAffinity.leading,
+                      value: checked,
+                      title: Text(
+                        '${entry.index}. ${entry.title}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontFamily: KlipFetchTheme.bodyFontFamily,
+                          fontSize: 13,
+                          fontWeight:
+                              checked ? FontWeight.w600 : FontWeight.w400,
+                          color: KlipFetchTheme.lightInk,
+                        ),
+                      ),
+                      onChanged: (_) => onTogglePlaylistEntry(entry.index),
+                    );
+                  },
+                ),
               ),
             ),
           ],
-        ),
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            key: const Key('home_download_button'),
+            onPressed: downloadDisabled ? null : onDownload,
+            icon: const Icon(Icons.download_rounded, size: 18),
+            label: Text(
+              probe.isPlaylist
+                  ? 'Download $selectedPlaylistCount Selected'
+                  : (probeState.audioOnly
+                      ? 'Download ${probeState.selectedAudioFormat.toUpperCase()}'
+                      : 'Download ${probeState.selectedFormat?.label ?? "Best"}'),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _InfoPill extends StatelessWidget {
-  const _InfoPill({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    const tone = KlipFetchTheme.neutralTone;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: tone.fill,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: tone.border),
-      ),
-      child: Text(
-        label,
-        style: theme.textTheme.labelSmall?.copyWith(
-          fontSize: 12,
-          color: tone.ink,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-}
-
-class _ThumbnailFallback extends StatelessWidget {
-  const _ThumbnailFallback({required this.scheme});
-
-  final ColorScheme scheme;
+class _EditorialPosterFallback extends StatelessWidget {
+  const _EditorialPosterFallback();
 
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHigh,
+      decoration: const BoxDecoration(
+        color: Color(0xFF231E1B),
       ),
       child: Center(
         child: Icon(
-          Icons.movie_creation_outlined,
-          color: scheme.onSurfaceVariant,
+          Icons.play_arrow_rounded,
+          size: 36,
+          color: KlipFetchTheme.lightOnPrimary.withValues(alpha: 0.72),
         ),
       ),
     );
