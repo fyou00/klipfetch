@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/downloads/downloads_screen.dart';
@@ -97,45 +98,183 @@ class _KlipFetchAppState extends ConsumerState<KlipFetchApp> {
       debugShowCheckedModeBanner: false,
       theme: KlipFetchTheme.light(),
       themeMode: ThemeMode.light,
-      home: Scaffold(
-        body: IndexedStack(
-          index: selectedTab,
-          children: [
-            HomeScreen(skipClipboardCheck: widget.skipPlatformBootstrap),
-            const DownloadsScreen(),
-            SettingsScreen(skipVersionProbe: widget.skipPlatformBootstrap),
-          ],
+      home: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: const SystemUiOverlayStyle(
+          statusBarColor: KlipFetchTheme.lightBackground,
+          statusBarIconBrightness: Brightness.dark,
+          statusBarBrightness: Brightness.light,
+          systemNavigationBarColor: KlipFetchTheme.lightSurface,
+          systemNavigationBarIconBrightness: Brightness.dark,
         ),
-        bottomNavigationBar: NavigationBar(
-          selectedIndex: selectedTab,
-          onDestinationSelected: (index) {
-            ref.read(selectedTabProvider.notifier).select(index);
-          },
-          destinations: [
-            const NavigationDestination(
-              icon: Icon(Icons.home_outlined),
-              selectedIcon: Icon(Icons.home_rounded),
-              label: 'Home',
-            ),
-            NavigationDestination(
-              icon: Badge(
-                isLabelVisible: activeCount > 0,
-                label: Text('$activeCount'),
-                child: const Icon(Icons.download_outlined),
+        child: Scaffold(
+          body: IndexedStack(
+            index: selectedTab,
+            children: [
+              HomeScreen(skipClipboardCheck: widget.skipPlatformBootstrap),
+              const DownloadsScreen(),
+              SettingsScreen(skipVersionProbe: widget.skipPlatformBootstrap),
+            ],
+          ),
+          bottomNavigationBar: _EditorialBottomNavBar(
+            selectedIndex: selectedTab,
+            activeCount: activeCount,
+            onSelect: (index) {
+              ref.read(selectedTabProvider.notifier).select(index);
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EditorialBottomNavBar extends StatelessWidget {
+  const _EditorialBottomNavBar({
+    required this.selectedIndex,
+    required this.activeCount,
+    required this.onSelect,
+  });
+
+  final int selectedIndex;
+  final int activeCount;
+  final ValueChanged<int> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: KlipFetchTheme.lightSurface,
+        border: Border(
+          top: BorderSide(color: KlipFetchTheme.lightBorder),
+        ),
+      ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 68,
+          child: Row(
+            children: [
+              _EditorialNavItem(
+                label: 'Home',
+                icon: Icons.home_outlined,
+                selectedIcon: Icons.home_rounded,
+                selected: selectedIndex == 0,
+                onTap: () => onSelect(0),
               ),
-              selectedIcon: Badge(
-                isLabelVisible: activeCount > 0,
-                label: Text('$activeCount'),
-                child: const Icon(Icons.download_rounded),
+              _EditorialNavItem(
+                label: 'Downloads',
+                icon: Icons.download_outlined,
+                selectedIcon: Icons.download_rounded,
+                selected: selectedIndex == 1,
+                badgeCount: activeCount,
+                onTap: () => onSelect(1),
               ),
-              label: 'Downloads',
-            ),
-            const NavigationDestination(
-              icon: Icon(Icons.settings_outlined),
-              selectedIcon: Icon(Icons.settings_rounded),
-              label: 'Settings',
-            ),
-          ],
+              _EditorialNavItem(
+                label: 'Settings',
+                icon: Icons.settings_outlined,
+                selectedIcon: Icons.settings_rounded,
+                selected: selectedIndex == 2,
+                onTap: () => onSelect(2),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EditorialNavItem extends StatelessWidget {
+  const _EditorialNavItem({
+    required this.label,
+    required this.icon,
+    required this.selectedIcon,
+    required this.selected,
+    required this.onTap,
+    this.badgeCount = 0,
+  });
+
+  final String label;
+  final IconData icon;
+  final IconData selectedIcon;
+  final bool selected;
+  final VoidCallback onTap;
+  final int badgeCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final iconColor =
+        selected ? KlipFetchTheme.brandAccent : KlipFetchTheme.lightMutedInk;
+    final labelColor =
+        selected ? KlipFetchTheme.lightInk : KlipFetchTheme.lightMutedInk;
+
+    return Expanded(
+      child: Semantics(
+        button: true,
+        selected: selected,
+        label: label,
+        child: InkWell(
+          onTap: onTap,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              SizedBox(
+                width: 56,
+                height: 2,
+                child: ColoredBox(
+                  color: selected
+                      ? KlipFetchTheme.brandAccent
+                      : Colors.transparent,
+                ),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    selected ? selectedIcon : icon,
+                    size: 20,
+                    color: iconColor,
+                  ),
+                  if (badgeCount > 0) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: KlipFetchTheme.brandAccent,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                      child: Text(
+                        '$badgeCount',
+                        style: KlipFetchTheme.monoStyle(
+                          size: 10,
+                          height: 1.2,
+                          color: KlipFetchTheme.lightOnPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: KlipFetchTheme.bodyFontFamily,
+                    fontSize: 12,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                    color: labelColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
