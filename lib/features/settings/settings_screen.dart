@@ -125,10 +125,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const SizedBox(height: 16),
 
             // ── Appearance ───────────────────────────────────────────────
-            const _SectionHeading(
-              kicker: 'DISPLAY',
-              title: 'Appearance',
-            ),
+            const _SectionHeading(title: 'Appearance'),
             const SizedBox(height: 10),
             EditorialSegmentedControl<AppThemeMode>(
               locked: true,
@@ -144,23 +141,35 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   .toList(),
             ),
             const SizedBox(height: 8),
-            Text(
-              'Light Mode is locked. Theme switching is currently disabled.',
-              key: const Key('settings_theme_locked_caption'),
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: KlipFetchTheme.lightMutedInk,
-              ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.lock_outline_rounded,
+                  size: 14,
+                  color: KlipFetchTheme.lightMutedInk,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Light Mode is locked. Theme switching is currently disabled.',
+                    key: const Key('settings_theme_locked_caption'),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: KlipFetchTheme.lightMutedInk,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
 
             // ── Accounts & Cookies entry ─────────────────────────────────
-            Material(
-              color: KlipFetchTheme.lightSurface,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(4),
-                side: const BorderSide(color: KlipFetchTheme.lightBorder),
+            Container(
+              decoration: const BoxDecoration(
+                border: Border(
+                  top: BorderSide(color: KlipFetchTheme.lightBorder),
+                ),
               ),
-              clipBehavior: Clip.antiAlias,
               child: InkWell(
                 key: const Key('settings_accounts_tile'),
                 onTap: () {
@@ -171,27 +180,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   );
                 },
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 14,
-                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
                   child: Row(
                     children: [
-                      Container(
-                        width: 34,
-                        height: 34,
-                        decoration: BoxDecoration(
-                          color: KlipFetchTheme.lightSurfaceSubtle,
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(
-                            color: KlipFetchTheme.lightBorder,
-                          ),
-                        ),
-                        child: const Icon(
-                          Icons.key_rounded,
-                          size: 18,
-                          color: KlipFetchTheme.lightInk,
-                        ),
+                      const Icon(
+                        Icons.vpn_key_outlined,
+                        size: 20,
+                        color: KlipFetchTheme.lightInk,
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -210,7 +205,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               style: KlipFetchTheme.monoStyle(
                                 size: 12,
                                 color: connectedCount > 0
-                                    ? const Color(0xFF166835)
+                                    ? KlipFetchTheme.successTone.ink
                                     : KlipFetchTheme.lightMutedInk,
                               ),
                             ),
@@ -227,16 +222,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ),
 
-            const SizedBox(height: 20),
             const EditorialHeavyRule(),
-            const SizedBox(height: 18),
+            const SizedBox(height: 16),
 
             // ── Downloads Defaults ───────────────────────────────────────
-            const _SectionHeading(
-              kicker: 'DEFAULTS',
-              title: 'Downloads',
-            ),
-            const SizedBox(height: 12),
+            const _SectionHeading(title: 'Downloads'),
+            const SizedBox(height: 10),
             Text(
               'Default Video Quality',
               style: theme.textTheme.labelMedium?.copyWith(
@@ -329,54 +320,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               showBottomHairline: false,
             ),
 
+            const SizedBox(height: 8),
+            const EditorialHairline(),
             const SizedBox(height: 16),
-            const EditorialHeavyRule(),
-            const SizedBox(height: 18),
 
             // ── yt-dlp Engine ────────────────────────────────────────────
-            const _SectionHeading(
-              kicker: 'ENGINE',
-              title: 'yt-dlp Engine',
-            ),
-            const SizedBox(height: 8),
-            InkWell(
-              borderRadius: BorderRadius.circular(4),
-              onTap: _loadYtDlpVersion,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Engine version',
-                            style: theme.textTheme.bodyLarge?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Installed ${_ytDlpVersion ?? "Not initialized"}',
-                            style: KlipFetchTheme.monoStyle(
-                              size: 12,
-                              color: KlipFetchTheme.lightMutedInk,
-                            ),
-                          ),
-                        ],
+            Row(
+              children: [
+                const Expanded(
+                  child: _SectionHeading(title: 'yt-dlp Engine'),
+                ),
+                const SizedBox(width: 12),
+                InkWell(
+                  borderRadius: BorderRadius.circular(2),
+                  onTap: _loadYtDlpVersion,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Text(
+                      'Installed ${_ytDlpVersion ?? "Not initialized"}',
+                      style: KlipFetchTheme.monoStyle(
+                        size: 12,
+                        color: KlipFetchTheme.lightMutedInk,
                       ),
                     ),
-                    const Icon(
-                      Icons.refresh_rounded,
-                      size: 18,
-                      color: KlipFetchTheme.lightMutedInk,
-                    ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
-            const EditorialHairline(),
+            const SizedBox(height: 8),
             _InlineSegmentedSettingRow<String>(
               label: 'Update channel',
               selected: settings.updateChannel,
@@ -392,41 +363,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            const EditorialHairline(),
+            const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
-              child: OutlinedButton.icon(
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(0, 44),
+                ),
                 onPressed: _updatingYtDlp
                     ? null
                     : () => _updateYtDlp(settings.updateChannel),
-                icon: _updatingYtDlp
-                    ? const SizedBox(
-                        width: 15,
-                        height: 15,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: KlipFetchTheme.lightInk,
-                        ),
-                      )
-                    : const Icon(Icons.system_update_alt_rounded, size: 17),
-                label: Text(
+                child: Text(
                   _updatingYtDlp ? 'Updating yt-dlp...' : 'Update yt-dlp',
                 ),
               ),
             ),
 
-            const SizedBox(height: 20),
-            const EditorialHeavyRule(),
-            const SizedBox(height: 18),
+            const SizedBox(height: 16),
+            const EditorialHairline(),
 
             // ── Android & Storage ────────────────────────────────────────
-            const _SectionHeading(
-              kicker: 'SYSTEM',
-              title: 'Android & Storage',
-            ),
-            const SizedBox(height: 8),
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
+              padding: const EdgeInsets.symmetric(vertical: 12),
               child: Row(
                 children: [
                   Expanded(
@@ -466,81 +425,37 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             const EditorialHairline(),
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              child: Row(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Saved Downloads Location',
-                          style: theme.textTheme.bodyLarge?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          'Downloads/KlipFetch/{TikTok,Instagram,YouTube}',
-                          style: KlipFetchTheme.monoStyle(
-                            size: 12,
-                            color: KlipFetchTheme.lightMutedInk,
-                          ),
-                        ),
-                      ],
+                  Text(
+                    'Saved Downloads Location',
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  const Icon(
-                    Icons.folder_open_rounded,
-                    size: 18,
-                    color: KlipFetchTheme.lightMutedInk,
+                  const SizedBox(height: 3),
+                  Text(
+                    'Downloads/KlipFetch/{TikTok,Instagram,YouTube}',
+                    style: KlipFetchTheme.monoStyle(
+                      size: 12,
+                      color: KlipFetchTheme.lightMutedInk,
+                    ),
                   ),
                 ],
               ),
             ),
 
-            const SizedBox(height: 16),
-            const EditorialHeavyRule(),
-            const SizedBox(height: 18),
+            const EditorialHairline(),
+            const SizedBox(height: 14),
 
             // ── Colophon & License ───────────────────────────────────────
-            EditorialWell(
-              fillColor: KlipFetchTheme.lightSurfaceSubtle,
-              borderColor: KlipFetchTheme.lightBorder,
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        'KlipFetch',
-                        style: KlipFetchTheme.displayStyle(
-                          size: 18,
-                          wdth: 85,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'v0.1.1',
-                        style: KlipFetchTheme.monoStyle(
-                          size: 11.5,
-                          color: KlipFetchTheme.lightMutedInk,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Licensed under GNU General Public License v3.0 (GPL-3.0). Powered by libreget-core (OpenSelena/libreget), yt-dlp, youtubedl-android, FFmpeg, and Flutter Rust Bridge.',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: KlipFetchTheme.inkSecondary,
-                      height: 1.45,
-                    ),
-                  ),
-                ],
+            Text(
+              'KlipFetch v0.1.1 (GNU GPL v3.0). Powered by libreget-core, yt-dlp, youtubedl-android, FFmpeg, and Flutter Rust Bridge.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: KlipFetchTheme.lightMutedInk,
+                height: 1.45,
               ),
             ),
           ],
@@ -551,33 +466,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 }
 
 class _SectionHeading extends StatelessWidget {
-  const _SectionHeading({
-    required this.kicker,
-    required this.title,
-  });
+  const _SectionHeading({required this.title});
 
-  final String kicker;
   final String title;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          kicker,
-          style: KlipFetchTheme.monoStyle(
-            size: 10.5,
-            color: KlipFetchTheme.lightMutedInk,
-          ).copyWith(letterSpacing: 1.1),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          title,
-          style: theme.textTheme.titleLarge?.copyWith(fontSize: 18),
-        ),
-      ],
+    return Text(
+      title,
+      style: theme.textTheme.titleMedium?.copyWith(
+        fontSize: 15,
+        fontWeight: FontWeight.w600,
+        color: KlipFetchTheme.lightInk,
+      ),
     );
   }
 }

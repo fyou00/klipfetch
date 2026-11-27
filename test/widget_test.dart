@@ -539,7 +539,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Queued 1 playlist items'), findsOneWidget);
 
-    await tester.drag(find.byType(ListView).first, const Offset(0, 800));
+    tester
+        .state<ScrollableState>(find.byType(Scrollable).first)
+        .position
+        .jumpTo(0);
     await tester.pumpAndSettle();
 
     await tester.enterText(

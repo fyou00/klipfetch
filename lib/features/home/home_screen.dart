@@ -913,61 +913,6 @@ class _ProbeSpecSheet extends StatelessWidget {
               showBottomHairline: false,
             ),
           ],
-          if (isYouTube && !probeState.audioOnly) ...[
-            const SizedBox(height: 12),
-            Container(
-              height: 46,
-              decoration: const BoxDecoration(
-                border: Border(
-                  top: BorderSide(color: KlipFetchTheme.lightBorder),
-                  bottom: BorderSide(color: KlipFetchTheme.lightBorder),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Video Container', style: theme.textTheme.labelLarge),
-                  EditorialSegmentedControl<String>(
-                    compact: true,
-                    options: AppSettings.supportedVideoContainers
-                        .map(
-                          (c) => EditorialSegmentOption(
-                            value: c,
-                            label: c.toUpperCase(),
-                          ),
-                        )
-                        .toList(),
-                    selected: probeState.videoContainer,
-                    onSelected: onVideoContainerChanged,
-                  ),
-                ],
-              ),
-            ),
-            EditorialSwitchRow(
-              key: const Key('home_subtitles_switch'),
-              title: 'Download subtitles (SRT/VTT)',
-              subtitle: probe.availableSubtitles.isNotEmpty
-                  ? 'Available: ${probe.availableSubtitles.take(5).join(", ")}'
-                  : null,
-              value: probeState.downloadSubtitles,
-              onChanged: onDownloadSubtitlesChanged,
-            ),
-            if (probeState.downloadSubtitles)
-              EditorialSwitchRow(
-                key: const Key('home_embed_subtitles_switch'),
-                title: 'Embed subtitles into video',
-                value: probeState.embedSubtitles,
-                onChanged: onEmbedSubtitlesChanged,
-              ),
-          ],
-          if (isYouTube)
-            EditorialSwitchRow(
-              key: const Key('home_sponsorblock_switch'),
-              title: 'Remove SponsorBlock segments',
-              value: probeState.sponsorBlockEnabled,
-              onChanged: onSponsorBlockChanged,
-              showBottomHairline: probe.isPlaylist,
-            ),
           if (probe.isPlaylist) ...[
             const SizedBox(height: 12),
             Row(
@@ -1046,6 +991,61 @@ class _ProbeSpecSheet extends StatelessWidget {
               ),
             ),
           ],
+          if (isYouTube && !probeState.audioOnly) ...[
+            const SizedBox(height: 12),
+            Container(
+              height: 46,
+              decoration: const BoxDecoration(
+                border: Border(
+                  top: BorderSide(color: KlipFetchTheme.lightBorder),
+                  bottom: BorderSide(color: KlipFetchTheme.lightBorder),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Video Container', style: theme.textTheme.labelLarge),
+                  EditorialSegmentedControl<String>(
+                    compact: true,
+                    options: AppSettings.supportedVideoContainers
+                        .map(
+                          (c) => EditorialSegmentOption(
+                            value: c,
+                            label: c.toUpperCase(),
+                          ),
+                        )
+                        .toList(),
+                    selected: probeState.videoContainer,
+                    onSelected: onVideoContainerChanged,
+                  ),
+                ],
+              ),
+            ),
+            EditorialSwitchRow(
+              key: const Key('home_subtitles_switch'),
+              title: 'Download subtitles (SRT/VTT)',
+              subtitle: probe.availableSubtitles.isNotEmpty
+                  ? 'Available: ${probe.availableSubtitles.take(5).join(", ")}'
+                  : null,
+              value: probeState.downloadSubtitles,
+              onChanged: onDownloadSubtitlesChanged,
+            ),
+            if (probeState.downloadSubtitles)
+              EditorialSwitchRow(
+                key: const Key('home_embed_subtitles_switch'),
+                title: 'Embed subtitles into video',
+                value: probeState.embedSubtitles,
+                onChanged: onEmbedSubtitlesChanged,
+              ),
+          ],
+          if (isYouTube)
+            EditorialSwitchRow(
+              key: const Key('home_sponsorblock_switch'),
+              title: 'Remove SponsorBlock segments',
+              value: probeState.sponsorBlockEnabled,
+              onChanged: onSponsorBlockChanged,
+              showBottomHairline: false,
+            ),
           const SizedBox(height: 16),
           FilledButton.icon(
             key: const Key('home_download_button'),

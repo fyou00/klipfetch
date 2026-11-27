@@ -20,6 +20,8 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Button
+import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
@@ -164,15 +166,15 @@ class AuthWebViewActivity : Activity() {
             )
         }
 
-        val closeBtn = Button(this).apply {
-            text = "Close"
-            isAllCaps = false
+        val closeBtn = ImageButton(this).apply {
+            contentDescription = "Close"
             background = null
-            setTextColor(Color.parseColor("#4A433C"))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-            setPadding(dp(8), dp(6), dp(8), dp(6))
-            minWidth = 0
-            minimumWidth = 0
+            scaleType = ImageView.ScaleType.CENTER
+            setImageResource(R.drawable.ic_webview_close)
+            setPadding(dp(8), dp(8), dp(8), dp(8))
+            minimumWidth = dp(40)
+            minimumHeight = dp(40)
+            layoutParams = LinearLayout.LayoutParams(dp(40), dp(40))
             setOnClickListener {
                 setResult(RESULT_CANCELED)
                 finish()
@@ -209,15 +211,15 @@ class AuthWebViewActivity : Activity() {
         titleCol.addView(titleView)
         titleCol.addView(statusView)
 
-        val reloadBtn = Button(this).apply {
-            text = "Reload"
-            isAllCaps = false
+        val reloadBtn = ImageButton(this).apply {
+            contentDescription = "Reload"
             background = null
-            setTextColor(Color.parseColor("#4A433C"))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-            setPadding(dp(8), dp(6), dp(8), dp(6))
-            minWidth = 0
-            minimumWidth = 0
+            scaleType = ImageView.ScaleType.CENTER
+            setImageResource(R.drawable.ic_webview_reload)
+            setPadding(dp(8), dp(8), dp(8), dp(8))
+            minimumWidth = dp(40)
+            minimumHeight = dp(40)
+            layoutParams = LinearLayout.LayoutParams(dp(40), dp(40))
             setOnClickListener {
                 webView.reload()
             }
@@ -300,9 +302,11 @@ class AuthWebViewActivity : Activity() {
         if (snapshot.hasAuthCookie) {
             statusView.text = "${snapshot.cookieCount} cookies ready. Tap Save Session."
             statusView.setTextColor(Color.parseColor("#166835"))
+            statusView.setTypeface(null, Typeface.BOLD)
         } else if (snapshot.cookieCount > 0) {
             statusView.text = "${snapshot.cookieCount} cookies loaded. Sign in, then Save Session."
             statusView.setTextColor(Color.parseColor("#8C5200"))
+            statusView.setTypeface(null, Typeface.NORMAL)
         }
     }
 

@@ -198,45 +198,33 @@ class _AuthBrowserScreenState extends ConsumerState<AuthBrowserScreen> {
             EditorialWell(
               fillColor: KlipFetchTheme.lightSurfaceSubtle,
               borderColor: KlipFetchTheme.lightBorder,
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(14),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Padding(
                     padding: EdgeInsets.only(top: 1),
                     child: Icon(
-                      Icons.lock_outline_rounded,
-                      size: 16,
-                      color: KlipFetchTheme.inkSecondary,
+                      Icons.shield_outlined,
+                      size: 18,
+                      color: KlipFetchTheme.lightInk,
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Private session vault',
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            color: KlipFetchTheme.lightInk,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          'Cookies captured via native WebView or pasted as Netscape cookies.txt stay in app-private storage (cookies/cookies.txt) and are never logged or shared.',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: KlipFetchTheme.inkSecondary,
-                            height: 1.4,
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      'Sign in via Android WebView to capture HttpOnly session cookies for Stories, private posts, and age-restricted videos. Stored only in app-private storage.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: KlipFetchTheme.inkSecondary,
+                        height: 1.45,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 16),
-            for (var i = 0; i < AuthPlatformConfig.all.length; i++) ...[
+            const SizedBox(height: 8),
+            for (var i = 0; i < AuthPlatformConfig.all.length; i++)
               _buildPlatformCard(
                 context,
                 config: AuthPlatformConfig.all[i],
@@ -246,9 +234,6 @@ class _AuthBrowserScreenState extends ConsumerState<AuthBrowserScreen> {
                       domain: AuthPlatformConfig.all[i].domain,
                     ),
               ),
-              if (i < AuthPlatformConfig.all.length - 1)
-                const SizedBox(height: 12),
-            ],
           ],
         ),
       ),
@@ -271,53 +256,45 @@ class _AuthBrowserScreenState extends ConsumerState<AuthBrowserScreen> {
       _ => ('Not signed in', KlipFetchTheme.neutralTone),
     };
 
-    final cookieSummary = status.hasCookies
-        ? '${status.cookieCount} cookies stored'
-        : 'No local cookies stored';
-
     final ButtonStyle compactButtonStyle = ButtonStyle(
       minimumSize: const WidgetStatePropertyAll(Size(0, 34)),
       padding: const WidgetStatePropertyAll(
-        EdgeInsets.symmetric(horizontal: 12),
+        EdgeInsets.symmetric(horizontal: 14),
       ),
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
 
-    return Material(
+    return Container(
       key: Key('auth_card_${config.platform.name}'),
-      color: KlipFetchTheme.lightSurface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(4),
-        side: const BorderSide(color: KlipFetchTheme.lightBorder),
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      decoration: const BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: KlipFetchTheme.lightBorder),
+        ),
       ),
-      clipBehavior: Clip.antiAlias,
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                PlatformBadge(platform: config.platform),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    config.domain,
-                    overflow: TextOverflow.ellipsis,
-                    style: KlipFetchTheme.monoStyle(
-                      size: 11.5,
-                      color: KlipFetchTheme.lightMutedInk,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                EditorialStatusTag(
-                  label: statusLabel,
-                  tone: statusTone,
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              PlatformBadge(platform: config.platform),
+              const Spacer(),
+              EditorialStatusTag(
+                label: statusLabel,
+                tone: statusTone,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (status.hasCookies)
+            Text(
+              '${status.cookieCount} cookies saved in ${config.domain}',
+              style: KlipFetchTheme.monoStyle(
+                size: 12,
+                color: KlipFetchTheme.inkSecondary,
+              ),
+            )
+          else
             Text(
               config.helperNote,
               style: theme.textTheme.bodySmall?.copyWith(
@@ -325,103 +302,67 @@ class _AuthBrowserScreenState extends ConsumerState<AuthBrowserScreen> {
                 height: 1.4,
               ),
             ),
+          if (testResult != null) ...[
             const SizedBox(height: 6),
             Text(
-              cookieSummary,
-              style: KlipFetchTheme.monoStyle(
-                size: 11.5,
-                color: status.hasCookies
-                    ? KlipFetchTheme.inkSecondary
-                    : KlipFetchTheme.lightMutedInk,
-              ),
-            ),
-            if (testResult != null) ...[
-              const SizedBox(height: 10),
-              _buildTestResultBanner(theme, testResult),
-            ],
-            const SizedBox(height: 12),
-            const EditorialHairline(),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                if (!status.isConnected)
-                  FilledButton(
-                    key: Key('auth_signin_${config.platform.name}'),
-                    style: compactButtonStyle,
-                    onPressed: isBusy ? null : () => _signIn(config),
-                    child: const Text('Sign In'),
-                  )
-                else
-                  OutlinedButton(
-                    key: Key('auth_signin_${config.platform.name}'),
-                    style: compactButtonStyle,
-                    onPressed: isBusy ? null : () => _signIn(config),
-                    child: const Text('Re-auth'),
-                  ),
-                OutlinedButton(
-                  key: Key('auth_test_${config.platform.name}'),
-                  style: compactButtonStyle,
-                  onPressed: (isBusy || !status.hasCookies)
-                      ? null
-                      : () => _testSession(config),
-                  child: const Text('Test'),
-                ),
-                OutlinedButton(
-                  key: Key('auth_import_${config.platform.name}'),
-                  style: compactButtonStyle,
-                  onPressed: isBusy ? null : () => _importCookies(config),
-                  child: const Text('Import'),
-                ),
-                if (status.hasCookies)
-                  TextButton(
-                    key: Key('auth_clear_${config.platform.name}'),
-                    style: compactButtonStyle.copyWith(
-                      foregroundColor: const WidgetStatePropertyAll(
-                        KlipFetchTheme.lightError,
-                      ),
-                    ),
-                    onPressed: isBusy ? null : () => _clearCookies(config),
-                    child: const Text('Clear'),
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTestResultBanner(ThemeData theme, SessionTestResult result) {
-    final tone =
-        result.isValid ? KlipFetchTheme.successTone : KlipFetchTheme.errorTone;
-    return EditorialWell(
-      fillColor: tone.fill,
-      borderColor: tone.border,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 8,
-      ),
-      child: Row(
-        children: [
-          Icon(
-            result.isValid
-                ? Icons.check_circle_outline_rounded
-                : Icons.error_outline_rounded,
-            size: 15,
-            color: tone.ink,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              result.message,
+              testResult.message,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: tone.ink,
+                color: testResult.isValid
+                    ? KlipFetchTheme.successTone.ink
+                    : KlipFetchTheme.errorTone.ink,
                 fontWeight: FontWeight.w600,
               ),
             ),
+          ],
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              if (!status.hasCookies)
+                FilledButton(
+                  key: Key('auth_signin_${config.platform.name}'),
+                  style: compactButtonStyle,
+                  onPressed: isBusy ? null : () => _signIn(config),
+                  child: const Text('Sign In'),
+                )
+              else
+                OutlinedButton(
+                  key: Key('auth_signin_${config.platform.name}'),
+                  style: compactButtonStyle,
+                  onPressed: isBusy ? null : () => _signIn(config),
+                  child: Text(status.isConnected ? 'Re-auth' : 'Sign In'),
+                ),
+              OutlinedButton(
+                key: Key('auth_test_${config.platform.name}'),
+                style: compactButtonStyle,
+                onPressed: (isBusy || !status.hasCookies)
+                    ? null
+                    : () => _testSession(config),
+                child: const Text('Test'),
+              ),
+              OutlinedButton(
+                key: Key('auth_import_${config.platform.name}'),
+                style: compactButtonStyle,
+                onPressed: isBusy ? null : () => _importCookies(config),
+                child: const Text('Import'),
+              ),
+              if (status.hasCookies)
+                OutlinedButton(
+                  key: Key('auth_clear_${config.platform.name}'),
+                  style: compactButtonStyle.copyWith(
+                    foregroundColor: const WidgetStatePropertyAll(
+                      KlipFetchTheme.lightError,
+                    ),
+                    side: const WidgetStatePropertyAll(
+                      BorderSide(color: KlipFetchTheme.lightError),
+                    ),
+                  ),
+                  onPressed: isBusy ? null : () => _clearCookies(config),
+                  child: const Text('Clear'),
+                ),
+            ],
           ),
         ],
       ),
