@@ -1,0 +1,60 @@
+/* Hallmark · scope: app · genre: editorial · theme: Editorial (dealt 1/3, seed android-media-downloader-utility-e719·8f1cec6f·2026-11-27·r0) · redesign: full · posture: restrained · v2.0.0 */
+/* Hallmark · pre-emit critique: P5 H5 E5 S5 R5 V5 · weakest: S before refinement; added factual dual-engine intake ledger on Home idle and full-bleed spec sheet preview */
+
+:root {
+  /* Paper & Surfaces */
+  --color-paper: oklch(95.9% 0.009 82);          /* #F5F2EC — Canvas */
+  --color-paper-elevated: oklch(99.2% 0.006 85); /* #FFFCF7 — Inputs, sheets, bottom bar, active segments */
+  --color-paper-well: oklch(92.4% 0.012 80);     /* #ECE7DD — Recessed wells, inactive tracks, playlist container, notice wells */
+  --color-paper-pressed: oklch(88.8% 0.014 78);  /* #E2DBD0 — Pressed state well */
+
+  /* Ink & Rules */
+  --color-ink: oklch(20.6% 0.008 58);            /* #1A1715 — Primary text, heavy 2px rules, selected spec chips */
+  --color-ink-secondary: oklch(38.2% 0.015 62);  /* #4A433C — Body text, secondary icons/labels */
+  --color-ink-muted: oklch(50.2% 0.016 64);      /* #6B635B — Captions, hints, inactive nav icons (5.1:1 on #F5F2EC) */
+  --color-rule: oklch(85.5% 0.013 78);           /* #D8D0C4 — 1px hairline dividers */
+  --color-rule-strong: oklch(59.2% 0.018 70);    /* #877D71 — 1px input/button borders (3.1:1+ non-text contrast) */
+
+  /* Brand Accent (Terracotta — strictly <5% viewport footprint) */
+  --color-accent: oklch(50.8% 0.178 36);         /* #BF3909 — Primary CTA fill, active tab bar, progress fill, focus ring */
+  --color-accent-ink: oklch(99.3% 0.005 80);     /* #FFFDF9 — Text/icon on terracotta */
+  --color-accent-well: oklch(92.7% 0.032 42);    /* #F8E5DC — Soft terracotta wash */
+  --color-accent-deep: oklch(39.4% 0.125 36);    /* #7D2605 — Ink on terracotta wash */
+  --color-focus: oklch(50.8% 0.178 36);          /* #BF3909 — Instant focus ring */
+
+  /* Status Semantics */
+  --color-status-ok: oklch(45.5% 0.128 148);     /* #166835 */
+  --color-status-ok-well: oklch(94.4% 0.024 148);/* #E4F2E8 */
+  --color-status-warn: oklch(49.5% 0.125 70);    /* #8C5200 */
+  --color-status-warn-well: oklch(95.1% 0.030 85);/* #FAF0DA */
+  --color-status-error: oklch(48.8% 0.185 26);   /* #B81D1D */
+  --color-status-error-well: oklch(94.2% 0.024 22);/* #FBE8E8 */
+
+  /* Platform Accents */
+  --color-platform-tiktok: oklch(47.2% 0.085 196);    /* #006B72 */
+  --color-platform-instagram: oklch(49.5% 0.176 358); /* #B31E52 */
+  --color-platform-youtube: oklch(50.2% 0.192 26);    /* #C41E1E */
+
+  /* Typography */
+  --font-display: "Bricolage Grotesque", sans-serif;
+  --font-body: "IBM Plex Sans", sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+
+  /* Spacing & Scale */
+  --space-3xs: 2px;
+  --space-2xs: 4px;
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 40px;
+
+  /* Architectural Radii & Rules */
+  --radius-rule: 0px;
+  --radius-tag: 2px;
+  --radius-control: 4px;
+  --radius-dialog: 6px;
+  --rule-hair: 1px;
+  --rule-heavy: 2px;
+  --shadow-card: none;
+}
